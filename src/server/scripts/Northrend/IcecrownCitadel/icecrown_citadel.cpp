@@ -17,9 +17,7 @@
 
 #include "icecrown_citadel.h"
 #include "CellImpl.h"
-#include "Creature.h"
-#include "CreatureAI.h"
-#include "GameObject.h"
+#include "Containers.h"
 #include "GameObjectAI.h"
 #include "GridNotifiersImpl.h"
 #include "InstanceScript.h"
@@ -28,10 +26,10 @@
 #include "PassiveAI.h"
 #include "ScriptedCreature.h"
 #include "ScriptMgr.h"
+#include "SpellAuras.h"
 #include "SpellMgr.h"
 #include "SpellScript.h"
 #include "TemporarySummon.h"
-#include "VehicleDefines.h"
 
 enum ICCTexts
 {
@@ -137,7 +135,7 @@ enum ICCSpells
     SPELL_DARK_MENDING              = 71020
 };
 
-enum ICCTimedEventIds
+enum ICCEvents
 {
     // Light's Hammer RP
     EVENT_TIRION_INTRO_2 = 1,
@@ -210,7 +208,7 @@ enum ICCMisc
     POINT_LAND          = 1,
 };
 
-// at Light's Hammer
+// 37119 - Highlord Tirion Fordring (At Light's Hammer)
 struct npc_highlord_tirion_fordring_lh : public ScriptedAI
 {
     npc_highlord_tirion_fordring_lh(Creature* creature) : ScriptedAI(creature), _instance(creature->GetInstanceScript())
@@ -381,7 +379,7 @@ struct npc_highlord_tirion_fordring_lh : public ScriptedAI
                 case EVENT_MURADIN_RUN:
                 case EVENT_SAURFANG_RUN:
                     if (Creature* factionNPC = ObjectAccessor::GetCreature(*me, _factionNPC))
-                        factionNPC->GetMotionMaster()->MovePath(factionNPC->GetSpawnId() * 10, false);
+                        factionNPC->GetMotionMaster()->MovePath((factionNPC->GetSpawnId() * 10) << 3, false);
                     me->setActive(false);
                     _damnedKills = 3;
                     break;
@@ -445,6 +443,7 @@ private:
     Unit const* _me;
 };
 
+// 38490, 38494 - Rotting Frost Giant
 struct npc_rotting_frost_giant : public ScriptedAI
 {
     npc_rotting_frost_giant(Creature* creature) : ScriptedAI(creature) { }
@@ -509,6 +508,7 @@ private:
     EventMap _events;
 };
 
+// 37744 - Frost Freeze Trap
 struct npc_frost_freeze_trap: public ScriptedAI
 {
     npc_frost_freeze_trap(Creature* creature) : ScriptedAI(creature)
@@ -544,6 +544,7 @@ private:
     EventMap _events;
 };
 
+// 38501 - Alchemist Adrianna
 struct npc_alchemist_adrianna : public ScriptedAI
 {
     npc_alchemist_adrianna(Creature* creature) : ScriptedAI(creature) { }
@@ -557,6 +558,7 @@ struct npc_alchemist_adrianna : public ScriptedAI
     }
 };
 
+// 30298 - Invisible Stalker (Float, Uninteractible, LargeAOI)
 class npc_arthas_teleport_visual : public CreatureScript
 {
     public:
@@ -607,6 +609,8 @@ class npc_arthas_teleport_visual : public CreatureScript
         }
 };
 
+// 39371 - King Varian Wrynn
+// 39372 - Garrosh Hellscream
 struct npc_entrance_faction_leader : public ScriptedAI
 {
     npc_entrance_faction_leader(Creature* creature) : ScriptedAI(creature) { }
@@ -659,6 +663,7 @@ static Emote const DarkFallensEmotes[]=
     EMOTE_ONESHOT_NO
 };
 
+// 38463 - Empowering Orb Visual Stalker
 struct npc_icc_orb_controller : public ScriptedAI
 {
     npc_icc_orb_controller(Creature* creature) : ScriptedAI(creature), _isInCombat(false), _isLongRepeat(false) { }
@@ -757,7 +762,7 @@ struct npc_icc_orb_controller : public ScriptedAI
             UpdateValidGuids();
             ScheduleVisualChannel(true);
             if (GameObject* orb = me->FindNearestGameObject(GO_EMPOWERING_BLOOD_ORB, 5.0f))
-                orb->SetFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
+                orb->SetFlag(GO_FLAG_NOT_SELECTABLE);
         }
     }
 
@@ -825,7 +830,7 @@ struct DarkFallenAI : public ScriptedAI
     {
         if (action == ACTION_SIPHON_INTERRUPTED)
             if (GameObject* orb = me->FindNearestGameObject(GO_EMPOWERING_BLOOD_ORB, 10.0f))
-                orb->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
+                orb->RemoveFlag(GO_FLAG_NOT_SELECTABLE);
     }
 
     void SetGUID(ObjectGuid const& guid, int32 id) override
@@ -861,6 +866,7 @@ protected:
     uint32 AttackSpellId;
 };
 
+// 37595 - Darkfallen Blood Knight
 struct npc_darkfallen_blood_knight : public DarkFallenAI
 {
     npc_darkfallen_blood_knight(Creature* creature) : DarkFallenAI(creature) { }
@@ -884,6 +890,7 @@ struct npc_darkfallen_blood_knight : public DarkFallenAI
     }
 };
 
+// 37663 - Darkfallen Noble
 struct npc_darkfallen_noble : public DarkFallenAI
 {
     npc_darkfallen_noble(Creature* creature) : DarkFallenAI(creature) { }
@@ -907,6 +914,7 @@ struct npc_darkfallen_noble : public DarkFallenAI
     }
 };
 
+// 37901 - Vampiric Fiend
 struct npc_vampiric_fiend : public ScriptedAI
 {
     npc_vampiric_fiend(Creature* creature) : ScriptedAI(creature) { }
@@ -944,6 +952,7 @@ private:
     TaskScheduler _scheduler;
 };
 
+// 37664 - Darkfallen Archmage
 struct npc_darkfallen_archmage : public DarkFallenAI
 {
     npc_darkfallen_archmage(Creature* creature) : DarkFallenAI(creature) { }
@@ -971,6 +980,7 @@ struct npc_darkfallen_archmage : public DarkFallenAI
     }
 };
 
+// 37571 - Darkfallen Advisor
 struct npc_darkfallen_advisor : public DarkFallenAI
 {
     npc_darkfallen_advisor(Creature* creature) : DarkFallenAI(creature) { }
@@ -991,6 +1001,7 @@ struct npc_darkfallen_advisor : public DarkFallenAI
     }
 };
 
+// 37666 - Darkfallen Tactician
 struct npc_darkfallen_tactician : public DarkFallenAI
 {
     npc_darkfallen_tactician(Creature* creature) : DarkFallenAI(creature) { }
@@ -1014,6 +1025,7 @@ struct npc_darkfallen_tactician : public DarkFallenAI
     }
 };
 
+// 36725 - Nerub'ar Broodkeeper
 struct npc_icc_nerubar_broodkeeper : public ScriptedAI
 {
     npc_icc_nerubar_broodkeeper(Creature* creature) : ScriptedAI(creature) { }
@@ -1023,7 +1035,7 @@ struct npc_icc_nerubar_broodkeeper : public ScriptedAI
     {
         me->SetDisableGravity(true);
         me->SetImmuneToAll(true);
-        me->SetUInt32Value(UNIT_NPC_EMOTESTATE, EMOTE_STATE_CUSTOM_SPELL_03);
+        me->SetEmoteState(EMOTE_STATE_CUSTOM_SPELL_03);
     }
 
     void Reset() override
@@ -1050,7 +1062,7 @@ struct npc_icc_nerubar_broodkeeper : public ScriptedAI
         me->SetHomePosition(x, y, z, me->GetOrientation());
 
         me->GetMotionMaster()->MoveLand(POINT_LAND, Position(x, y, z));
-        me->SetUInt32Value(UNIT_NPC_EMOTESTATE, EMOTE_ONESHOT_NONE);
+        me->SetEmoteState(EMOTE_ONESHOT_NONE);
     }
 
     void MovementInform(uint32 type, uint32 id) override
@@ -1113,6 +1125,7 @@ private:
     EventMap _events;
 };
 
+// 201741 - Empowering Blood Orb
 struct go_empowering_blood_orb : public GameObjectAI
 {
     go_empowering_blood_orb(GameObject* go) : GameObjectAI(go) { }
@@ -1132,7 +1145,7 @@ struct go_empowering_blood_orb : public GameObjectAI
 
     void HandleObjectUse()
     {
-        me->SetFlag(GAMEOBJECT_FLAGS, GO_FLAG_IN_USE);
+        me->SetFlag(GO_FLAG_IN_USE);
         me->SetGoAnimProgress(255);
         me->SetGoState(GO_STATE_DESTROYED);
         if (Creature* trigger = ObjectAccessor::GetCreature(*me, _triggerGuid))
@@ -1303,6 +1316,7 @@ class spell_generic_remove_empowered_blood : public SpellScript
     }
 };
 
+// 70733 - Stoneform
 class spell_icc_stoneform : public AuraScript
 {
     PrepareAuraScript(spell_icc_stoneform);
@@ -1312,9 +1326,9 @@ class spell_icc_stoneform : public AuraScript
         if (Creature* target = GetTarget()->ToCreature())
         {
             target->SetReactState(REACT_PASSIVE);
-            target->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
+            target->SetUnitFlag(UNIT_FLAG_UNINTERACTIBLE);
             target->SetImmuneToPC(true);
-            target->SetUInt32Value(UNIT_NPC_EMOTESTATE, EMOTE_STATE_CUSTOM_SPELL_02);
+            target->SetEmoteState(EMOTE_STATE_CUSTOM_SPELL_02);
         }
     }
 
@@ -1323,9 +1337,9 @@ class spell_icc_stoneform : public AuraScript
         if (Creature* target = GetTarget()->ToCreature())
         {
             target->SetReactState(REACT_AGGRESSIVE);
-            target->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
+            target->RemoveUnitFlag(UNIT_FLAG_UNINTERACTIBLE);
             target->SetImmuneToPC(false);
-            target->SetUInt32Value(UNIT_NPC_EMOTESTATE, 0);
+            target->SetEmoteState(EMOTE_ONESHOT_NONE);
         }
     }
 
@@ -1336,6 +1350,7 @@ class spell_icc_stoneform : public AuraScript
     }
 };
 
+// 70536, 70545, 70546, 70547 - Spirit Alarm
 class spell_icc_sprit_alarm : public SpellScript
 {
     PrepareSpellScript(spell_icc_sprit_alarm);
@@ -1344,7 +1359,7 @@ class spell_icc_sprit_alarm : public SpellScript
     {
         PreventHitDefaultEffect(effIndex);
         uint32 trapId = 0;
-        switch (GetSpellInfo()->Effects[effIndex].MiscValue)
+        switch (GetEffectInfo().MiscValue)
         {
             case EVENT_AWAKEN_WARD_1:
                 trapId = GO_SPIRIT_ALARM_1;
@@ -1452,6 +1467,7 @@ private:
     std::list<WorldObject*> _sharedList;
 };
 
+// 72155, 72162 - Harvest Blight Specimen
 class spell_icc_harvest_blight_specimen : public SpellScript
 {
     PrepareSpellScript(spell_icc_harvest_blight_specimen);

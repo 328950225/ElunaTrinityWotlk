@@ -129,6 +129,7 @@ class TC_GAME_API ArenaTeam
         uint32 GetType() const { return Type; }
         uint8 GetSlot() const { return GetSlotByType(GetType()); }
         static uint8 GetSlotByType(uint32 type);
+        static uint8 GetTypeBySlot(uint8 slot);
         ObjectGuid GetCaptain() const  { return CaptainGuid; }
         std::string const& GetName() const { return TeamName; }
         ArenaTeamStats const& GetStats() const { return Stats; }
@@ -155,7 +156,7 @@ class TC_GAME_API ArenaTeam
         bool LoadArenaTeamFromDB(QueryResult arenaTeamDataResult);
         bool LoadMembersFromDB(QueryResult arenaTeamMembersResult);
         void LoadStatsFromDB(uint32 ArenaTeamId);
-        void SaveToDB();
+        void SaveToDB(bool forceMemberSave = false);
 
         void BroadcastPacket(WorldPacket* packet);
         void BroadcastEvent(ArenaTeamEvents event, ObjectGuid guid, uint8 strCount, std::string const& str1, std::string const& str2, std::string const& str3);
@@ -178,7 +179,7 @@ class TC_GAME_API ArenaTeam
         void MemberLost(Player* player, uint32 againstMatchmakerRating, int32 MatchmakerRatingChange = -12);
         void OfflineMemberLost(ObjectGuid guid, uint32 againstMatchmakerRating, int32 MatchmakerRatingChange = -12);
 
-        void UpdateArenaPointsHelper(std::map<uint32, uint32> & PlayerPoints);
+        void UpdateArenaPointsHelper(std::map<ObjectGuid, uint32> & PlayerPoints);
 
         bool FinishWeek(); // returns true if arena team played this week
         void FinishGame(int32 mod);

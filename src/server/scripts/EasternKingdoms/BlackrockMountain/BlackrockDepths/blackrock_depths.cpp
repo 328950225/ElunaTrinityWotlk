@@ -46,11 +46,12 @@ class go_shadowforge_brazier : public GameObjectScript
                     instance->SetData(TYPE_LYCEUM, DONE);
                 else
                     instance->SetData(TYPE_LYCEUM, IN_PROGRESS);
-                // If used brazier open linked doors (North or South)
-                if (me->GetGUID() == instance->GetGuidData(DATA_SF_BRAZIER_N))
+                // If used both braziers, open linked doors (North and South)
+                if (instance->GetData(TYPE_LYCEUM) == DONE)
+                {
                     instance->HandleGameObject(instance->GetGuidData(DATA_GOLEM_DOOR_N), true);
-                else if (me->GetGUID() == instance->GetGuidData(DATA_SF_BRAZIER_S))
                     instance->HandleGameObject(instance->GetGuidData(DATA_GOLEM_DOOR_S), true);
+                }
 
                 return false;
             }
@@ -124,6 +125,8 @@ enum GrimstoneTexts
     SAY_TEXT6          = 5
 };
 
+static constexpr uint32 PATH_ESCORT_GRIMSTONE = 80770;
+
 /// @todo implement quest part of event (different end boss)
 class npc_grimstone : public CreatureScript
 {
@@ -177,8 +180,6 @@ public:
         void Reset() override
         {
             Initialize();
-
-            me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
         }
 
         /// @todo move them to center
@@ -248,7 +249,7 @@ public:
                 {
                     MobDeath_Timer = 2500;
 
-                    if (RingBossGUID)
+                    if (!RingBossGUID.IsEmpty())
                     {
                         Creature* boss = ObjectAccessor::GetCreature(*me, RingBossGUID);
                         if (boss && !boss->IsAlive() && boss->isDead())
@@ -289,7 +290,8 @@ public:
                     case 0:
                         Talk(SAY_TEXT5);
                         HandleGameObject(DATA_ARENA4, false);
-                        Start(false, false);
+                        LoadPath(PATH_ESCORT_GRIMSTONE);
+                        Start(false);
                         CanWalk = true;
                         Event_Timer = 0;
                         break;
@@ -436,11 +438,12 @@ enum Lokhtos
     QUEST_A_BINDING_CONTRACT                               = 7604,
     ITEM_SULFURON_INGOT                                    = 17203,
     ITEM_THRORIUM_BROTHERHOOD_CONTRACT                     = 18628,
-    SPELL_CREATE_THORIUM_BROTHERHOOD_CONTRACT_DND          = 23059
+    SPELL_CREATE_THORIUM_BROTHERHOOD_CONTRACT_DND          = 23059,
+    GOSSIP_ITEM_SHOW_ACCESS_MID                            = 4781,       // Show me what I have access to, Lokhtos.
+    GOSSIP_ITEM_SHOW_ACCESS_OID                            = 0,
 };
 
-#define GOSSIP_ITEM_SHOW_ACCESS     "Show me what I have access to, Lothos."
-#define GOSSIP_ITEM_GET_CONTRACT    "Get Thorium Brotherhood Contract"
+#define GOSSIP_ITEM_GET_CONTRACT    "Get Thorium Brotherhood Contract"  // miss in db,maybe wrong
 
 class npc_lokhtos_darkbargainer : public CreatureScript
 {
@@ -469,11 +472,12 @@ class npc_lokhtos_darkbargainer : public CreatureScript
 
             bool OnGossipHello(Player* player) override
             {
+                InitGossipMenuFor(player, GOSSIP_ITEM_SHOW_ACCESS_MID);
                 if (me->IsQuestGiver())
                     player->PrepareQuestMenu(me->GetGUID());
 
                 if (me->IsVendor() && player->GetReputationRank(59) >= REP_FRIENDLY)
-                    AddGossipItemFor(player, GOSSIP_ICON_VENDOR, GOSSIP_ITEM_SHOW_ACCESS, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_TRADE);
+                    AddGossipItemFor(player, GOSSIP_ITEM_SHOW_ACCESS_MID, GOSSIP_ITEM_SHOW_ACCESS_OID, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_TRADE);
 
                 if (!player->GetQuestRewardStatus(QUEST_A_BINDING_CONTRACT) &&
                     !player->HasItemCount(ITEM_THRORIUM_BROTHERHOOD_CONTRACT, 1, true) &&
@@ -502,7 +506,8 @@ enum Rocknot
 {
     SAY_GOT_BEER       = 0,
     QUEST_ALE          = 4295,
-    SPELL_DRUNKEN_RAGE = 14872
+    SPELL_DRUNKEN_RAGE = 14872,
+    PATH_ESCORT_ROCKNOT = 76026
 };
 
 class npc_rocknot : public CreatureScript
@@ -618,7 +623,8 @@ public:
                     Talk(SAY_GOT_BEER);
                     DoCastSelf(SPELL_DRUNKEN_RAGE, false);
 
-                    Start(false, false);
+                    LoadPath(PATH_ESCORT_ROCKNOT);
+                    Start(false);
                 }
             }
         }

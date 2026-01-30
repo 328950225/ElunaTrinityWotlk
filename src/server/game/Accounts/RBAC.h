@@ -97,11 +97,13 @@ enum RBACPermissions
     RBAC_PERM_RECEIVE_GLOBAL_GM_TEXTMESSAGE                  = 44,
     RBAC_PERM_SILENTLY_JOIN_CHANNEL                          = 45,
     RBAC_PERM_CHANGE_CHANNEL_NOT_MODERATOR                   = 46,
-    RBAC_PERM_CHECK_FOR_LOWER_SECURITY                       = 47,
+    RBAC_PERM_CAN_IGNORE_LOWER_SECURITY_CHECK                = 47,
     RBAC_PERM_COMMANDS_PINFO_CHECK_PERSONAL_DATA             = 48,
     RBAC_PERM_EMAIL_CONFIRM_FOR_PASS_CHANGE                  = 49,
     RBAC_PERM_MAY_CHECK_OWN_EMAIL                            = 50,
     RBAC_PERM_ALLOW_TWO_SIDE_TRADE                           = 51,
+    RBAC_PERM_NO_BATTLEGROUND_DESERTER_DEBUFF                = 52,
+    RBAC_PERM_CAN_AFK_ON_BATTLEGROUND                        = 53,
 
     // Free space for core permissions (till 149)
     // Roles (Permissions with delegated permissions) use 199 and descending
@@ -111,8 +113,8 @@ enum RBACPermissions
     RBAC_ROLE_MODERATOR                                      = 198,
     RBAC_ROLE_PLAYER                                         = 199,
 
-    RBAC_PERM_COMMAND_RBAC                                   = 200,
-    RBAC_PERM_COMMAND_RBAC_ACC                               = 201,
+    // 200 previously used, do not reuse
+    // 201 previously used, do not reuse
     RBAC_PERM_COMMAND_RBAC_ACC_PERM_LIST                     = 202,
     RBAC_PERM_COMMAND_RBAC_ACC_PERM_GRANT                    = 203,
     RBAC_PERM_COMMAND_RBAC_ACC_PERM_DENY                     = 204,
@@ -273,11 +275,11 @@ enum RBACPermissions
     RBAC_PERM_COMMAND_GUILD_UNINVITE                         = 405,
     RBAC_PERM_COMMAND_GUILD_RANK                             = 406,
     RBAC_PERM_COMMAND_GUILD_RENAME                           = 407,
-    RBAC_PERM_COMMAND_HONOR                                  = 408,
+    // 408 previously used, do not reuse
     RBAC_PERM_COMMAND_HONOR_ADD                              = 409,
     RBAC_PERM_COMMAND_HONOR_ADD_KILL                         = 410,
     RBAC_PERM_COMMAND_HONOR_UPDATE                           = 411,
-    RBAC_PERM_COMMAND_INSTANCE                               = 412,
+    // 412 previously used, do not reuse
     RBAC_PERM_COMMAND_INSTANCE_LISTBINDS                     = 413,
     RBAC_PERM_COMMAND_INSTANCE_UNBIND                        = 414,
     RBAC_PERM_COMMAND_INSTANCE_STATS                         = 415,
@@ -286,9 +288,9 @@ enum RBACPermissions
     // 418 previously used, do not reuse
     RBAC_PERM_COMMAND_LEARN_ALL_MY                           = 419,
     RBAC_PERM_COMMAND_LEARN_ALL_MY_CLASS                     = 420,
-    RBAC_PERM_COMMAND_LEARN_ALL_MY_PETTALENTS                = 421,
+    RBAC_PERM_COMMAND_LEARN_MY_PETTALENTS                    = 421,
     RBAC_PERM_COMMAND_LEARN_ALL_MY_SPELLS                    = 422,
-    RBAC_PERM_COMMAND_LEARN_ALL_MY_TALENTS                   = 423,
+    RBAC_PERM_COMMAND_LEARN_ALL_TALENTS                      = 423,
     RBAC_PERM_COMMAND_LEARN_ALL_GM                           = 424,
     RBAC_PERM_COMMAND_LEARN_ALL_CRAFTS                       = 425,
     RBAC_PERM_COMMAND_LEARN_ALL_DEFAULT                      = 426,
@@ -565,7 +567,7 @@ enum RBACPermissions
     RBAC_PERM_COMMAND_RELOAD_SPELL_PET_AURAS                 = 697,
     RBAC_PERM_COMMAND_CHARACTER_CHANGEACCOUNT                = 698,
     RBAC_PERM_COMMAND_RELOAD_SPELL_PROC                      = 699,
-    RBAC_PERM_COMMAND_RELOAD_SPELL_SCRIPTS                   = 700,
+    // 700 previously used, do not reuse
     RBAC_PERM_COMMAND_RELOAD_SPELL_TARGET_POSITION           = 701,
     RBAC_PERM_COMMAND_RELOAD_SPELL_THREATS                   = 702,
     RBAC_PERM_COMMAND_RELOAD_SPELL_GROUP_STACK_RULES         = 703,
@@ -626,11 +628,11 @@ enum RBACPermissions
     RBAC_PERM_COMMAND_TICKET_UNASSIGN                        = 758,
     RBAC_PERM_COMMAND_TICKET_VIEWID                          = 759,
     RBAC_PERM_COMMAND_TICKET_VIEWNAME                        = 760,
-    RBAC_PERM_COMMAND_TITLES                                 = 761,
+    // 761 previously used, do not reuse
     RBAC_PERM_COMMAND_TITLES_ADD                             = 762,
     RBAC_PERM_COMMAND_TITLES_CURRENT                         = 763,
     RBAC_PERM_COMMAND_TITLES_REMOVE                          = 764,
-    RBAC_PERM_COMMAND_TITLES_SET                             = 765,
+    // 765 previously used, do not reuse
     RBAC_PERM_COMMAND_TITLES_SET_MASK                        = 766,
     RBAC_PERM_COMMAND_WP                                     = 767,
     RBAC_PERM_COMMAND_WP_ADD                                 = 768,
@@ -743,6 +745,9 @@ enum RBACPermissions
     RBAC_PERM_COMMAND_LOOKUP_QUEST_ID                        = 877,
     // 878-879 previously used, do not reuse
     RBAC_PERM_COMMAND_PDUMP_COPY                             = 880,
+    RBAC_PERM_COMMAND_RELOAD_VEHICLE_TEMPLATE                = 881,
+    RBAC_PERM_COMMAND_BG_START                               = 884,
+    RBAC_PERM_COMMAND_BG_STOP                                = 885,
     //
     // IF YOU ADD NEW PERMISSIONS, ADD THEM IN MASTER BRANCH AS WELL!
     //
@@ -857,7 +862,7 @@ class TC_GAME_API RBACData
          * // previously defined "RBACData* rbac" with proper initialization
          * uint32 permissionId = 2;
          * if (rbac->GrantRole(permissionId) == RBAC_IN_DENIED_LIST)
-         *     TC_LOG_DEBUG("entities.player", "Failed to grant permission %u, already denied", permissionId);
+         *     TC_LOG_DEBUG("entities.player", "Failed to grant permission {}, already denied", permissionId);
          * @endcode
          */
         RBACCommandResult GrantPermission(uint32 permissionId, int32 realmId = 0);
@@ -881,7 +886,7 @@ class TC_GAME_API RBACData
          * // previously defined "RBACData* rbac" with proper initialization
          * uint32 permissionId = 2;
          * if (rbac->DenyRole(permissionId) == RBAC_ID_DOES_NOT_EXISTS)
-         *     TC_LOG_DEBUG("entities.player", "Role Id %u does not exists", permissionId);
+         *     TC_LOG_DEBUG("entities.player", "Role Id {} does not exists", permissionId);
          * @endcode
          */
         RBACCommandResult DenyPermission(uint32 permissionId, int32 realmId = 0);
@@ -906,7 +911,7 @@ class TC_GAME_API RBACData
          * // previously defined "RBACData* rbac" with proper initialization
          * uint32 permissionId = 2;
          * if (rbac->RevokeRole(permissionId) == RBAC_OK)
-         *     TC_LOG_DEBUG("entities.player", "Permission %u succesfully removed", permissionId);
+         *     TC_LOG_DEBUG("entities.player", "Permission {} succesfully removed", permissionId);
          * @endcode
          */
         RBACCommandResult RevokePermission(uint32 permissionId, int32 realmId = 0);

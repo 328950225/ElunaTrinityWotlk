@@ -258,8 +258,8 @@ enum BG_EY_BroadcastTexts
     BG_EY_TEXT_ALLIANCE_LOST_BLOOD_ELF_TOWER    = 17831,
     BG_EY_TEXT_HORDE_LOST_BLOOD_ELF_TOWER       = 17832,
 
-    BG_EY_TEXT_ALLIANCE_TAKEN_DRAENEI_RUINS     = 17826,
-    BG_EY_TEXT_HORDE_TAKEN_DRAENEI_RUINS        = 17827,
+    BG_EY_TEXT_ALLIANCE_TAKEN_DRAENEI_RUINS     = 17827,
+    BG_EY_TEXT_HORDE_TAKEN_DRAENEI_RUINS        = 17826,
     BG_EY_TEXT_ALLIANCE_LOST_DRAENEI_RUINS      = 17833,
     BG_EY_TEXT_HORDE_LOST_DRAENEI_RUINS         = 17834,
 
@@ -370,9 +370,9 @@ struct BattlegroundEYScore final : public BattlegroundScore
             }
         }
 
-        void BuildObjectivesBlock(WorldPacket& data) final override;
+        void BuildObjectivesBlock(WorldPackets::Battleground::PVPLogData_Player& playerData) override;
 
-        uint32 GetAttr1() const final override { return FlagCaptures; }
+        uint32 GetAttr1() const override { return FlagCaptures; }
 
         uint32 FlagCaptures;
 };

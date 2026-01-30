@@ -20,9 +20,15 @@
 
 #include "TileAssembler.h"
 #include "Banner.h"
+#include "Locales.h"
+#include "Util.h"
 
 int main(int argc, char* argv[])
 {
+    Trinity::VerifyOsVersion();
+
+    Trinity::Locale::Init();
+
     Trinity::Banner::Show("VMAP assembler", [](char const* text) { std::cout << text << std::endl; }, nullptr);
 
     std::string src = "Buildings";
@@ -56,3 +62,9 @@ int main(int argc, char* argv[])
     std::cout << "Ok, all done" << std::endl;
     return 0;
 }
+
+#if TRINITY_PLATFORM == TRINITY_PLATFORM_WINDOWS
+#include "WheatyExceptionReport.h"
+// must be at end of file because of init_seg pragma
+INIT_CRASH_HANDLER();
+#endif

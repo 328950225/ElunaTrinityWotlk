@@ -318,7 +318,7 @@ struct boss_krick : public ScriptedAI
         Initialize();
 
         me->SetReactState(REACT_PASSIVE);
-        me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+        me->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
     }
 
     void KilledUnit(Unit* victim) override
@@ -513,6 +513,7 @@ private:
     ObjectGuid _tyrannusGUID;
 };
 
+// 69012 - Explosive Barrage
 class spell_krick_explosive_barrage : public AuraScript
 {
     PrepareAuraScript(spell_krick_explosive_barrage);
@@ -539,28 +540,27 @@ class spell_krick_explosive_barrage : public AuraScript
     }
 };
 
+// 69263 - Explosive Barrage
 class spell_ick_explosive_barrage : public AuraScript
 {
     PrepareAuraScript(spell_ick_explosive_barrage);
 
     void HandleEffectApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
     {
-        Unit* caster = GetCaster();
-        if (!caster || caster->GetTypeId() != TYPEID_UNIT)
+        Creature* target = GetTarget()->ToCreature();
+        if (!target)
             return;
 
-        caster->GetMotionMaster()->MoveIdle();
-        caster->GetMotionMaster()->Clear(MOTION_PRIORITY_NORMAL);
+        target->SetReactState(REACT_PASSIVE);
     }
 
     void HandleEffectRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
     {
-        Unit* caster = GetCaster();
-        if (!caster || caster->GetTypeId() != TYPEID_UNIT)
+        Creature* target = GetTarget()->ToCreature();
+        if (!target)
             return;
 
-        if (Unit* victim = caster->GetVictim())
-            caster->GetMotionMaster()->MoveChase(victim);
+        target->SetReactState(REACT_AGGRESSIVE);
     }
 
     void Register() override
@@ -570,6 +570,7 @@ class spell_ick_explosive_barrage : public AuraScript
     }
 };
 
+// 44851 - Hasty Grow
 class spell_exploding_orb_hasty_grow : public AuraScript
 {
     PrepareAuraScript(spell_exploding_orb_hasty_grow);
@@ -594,6 +595,7 @@ class spell_exploding_orb_hasty_grow : public AuraScript
     }
 };
 
+// 68987 - Pursuit
 class spell_krick_pursuit : public SpellScript
 {
     PrepareSpellScript(spell_krick_pursuit);
@@ -636,6 +638,7 @@ class spell_krick_pursuit_AuraScript : public AuraScript
     }
 };
 
+// 69029, 70850 - Pursuit Confusion
 class spell_krick_pursuit_confusion : public AuraScript
 {
     PrepareAuraScript(spell_krick_pursuit_confusion);

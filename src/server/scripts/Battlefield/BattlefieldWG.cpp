@@ -24,6 +24,7 @@
 #include "BattlefieldMgr.h"
 #include "Battleground.h"
 #include "CreatureTextMgr.h"
+#include "DBCStores.h"
 #include "GameObject.h"
 #include "GameTime.h"
 #include "Log.h"
@@ -482,7 +483,6 @@ bool BattlefieldWG::SetupBattlefield()
         m_GraveyardList[i] = graveyard;
     }
 
-
     Workshops.resize(WG_MAX_WORKSHOP);
     // Spawn workshop creatures and gameobjects
     for (uint8 i = 0; i < WG_MAX_WORKSHOP; i++)
@@ -572,12 +572,11 @@ void BattlefieldWG::OnBattleStart()
         // Update faction of relic, only attacker can click on
         relic->SetFaction(WintergraspFaction[GetAttackerTeam()]);
         // Set in use (not allow to click on before last door is broken)
-        relic->SetFlag(GAMEOBJECT_FLAGS, GO_FLAG_IN_USE | GO_FLAG_NOT_SELECTABLE);
+        relic->SetFlag(GO_FLAG_IN_USE | GO_FLAG_NOT_SELECTABLE);
         m_titansRelicGUID = relic->GetGUID();
     }
     else
         TC_LOG_ERROR("bg.battlefield", "WG: Failed to spawn titan relic.");
-
 
     // Update tower visibility and update faction
     for (auto itr = CanonList.begin(); itr != CanonList.end(); ++itr)
@@ -651,7 +650,7 @@ void BattlefieldWG::UpdateCounterVehicle(bool init)
 void BattlefieldWG::OnBattleEnd(bool endByTimer)
 {
     // Remove relic
-    if (m_titansRelicGUID)
+    if (!m_titansRelicGUID.IsEmpty())
         if (GameObject* relic = GetGameObject(m_titansRelicGUID))
             relic->RemoveFromWorld();
     m_titansRelicGUID.Clear();
@@ -764,7 +763,7 @@ void BattlefieldWG::OnBattleEnd(bool endByTimer)
 // *******************************************************
 void BattlefieldWG::DoCompleteOrIncrementAchievement(uint32 achievement, Player* player, uint8 /*incrementNumber*/)
 {
-    AchievementEntry const* achievementEntry = sAchievementMgr->GetAchievement(achievement);
+    AchievementEntry const* achievementEntry = sAchievementStore.LookupEntry(achievement);
 
     if (!achievementEntry)
         return;
@@ -810,7 +809,7 @@ uint8 BattlefieldWG::GetSpiritGraveyardId(uint32 areaId) const
         case AREA_THE_CHILLED_QUAGMIRE:
             return BATTLEFIELD_WG_GY_HORDE;
         default:
-            TC_LOG_ERROR("bg.battlefield", "BattlefieldWG::GetSpiritGraveyardId: Unexpected Area Id %u", areaId);
+            TC_LOG_ERROR("bg.battlefield", "BattlefieldWG::GetSpiritGraveyardId: Unexpected Area Id {}", areaId);
             break;
     }
 
@@ -970,7 +969,7 @@ void BattlefieldWG::HandleKill(Player* killer, Unit* victim)
         HandlePromotion(killer, victim);
 
         // Allow to Skin non-released corpse
-        victim->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SKINNABLE);
+        victim->SetUnitFlag(UNIT_FLAG_SKINNABLE);
     }
 
     /// @todoRecent PvP activity worldstate
@@ -1497,7 +1496,7 @@ void BfWGGameObjectBuilding::Destroyed()
                     go->SetGoState(GO_STATE_ACTIVE);
             _wg->SetRelicInteractible(true);
             if (_wg->GetRelic())
-                _wg->GetRelic()->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_IN_USE | GO_FLAG_NOT_SELECTABLE);
+                _wg->GetRelic()->RemoveFlag(GO_FLAG_IN_USE | GO_FLAG_NOT_SELECTABLE);
             else
                 TC_LOG_ERROR("bg.battlefield.wg", "Titan Relic not found.");
             break;

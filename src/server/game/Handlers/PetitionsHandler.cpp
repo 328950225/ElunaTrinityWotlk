@@ -76,13 +76,13 @@ void WorldSession::HandlePetitionBuyOpcode(WorldPacket& recvData)
     recvData >> clientIndex;                               // index
     recvData.read_skip<uint32>();                          // 0
 
-    TC_LOG_DEBUG("network", "Petitioner %s tried sell petition: name %s", guidNPC.ToString().c_str(), name.c_str());
+    TC_LOG_DEBUG("network", "Petitioner {} tried sell petition: name {}", guidNPC.ToString(), name);
 
     // prevent cheating
     Creature* creature = GetPlayer()->GetNPCIfCanInteractWith(guidNPC, UNIT_NPC_FLAG_PETITIONER);
     if (!creature)
     {
-        TC_LOG_DEBUG("network", "WORLD: HandlePetitionBuyOpcode - %s not found or you can't interact with him.", guidNPC.ToString().c_str());
+        TC_LOG_DEBUG("network", "WORLD: HandlePetitionBuyOpcode - {} not found or you can't interact with him.", guidNPC.ToString());
         return;
     }
 
@@ -131,7 +131,7 @@ void WorldSession::HandlePetitionBuyOpcode(WorldPacket& recvData)
                 type = ARENA_TEAM_CHARTER_5v5_TYPE;
                 break;
             default:
-                TC_LOG_DEBUG("network", "unknown selection at buy arena petition: %u", clientIndex);
+                TC_LOG_DEBUG("network", "unknown selection at buy arena petition: {}", clientIndex);
                 return;
         }
 
@@ -210,7 +210,7 @@ void WorldSession::HandlePetitionBuyOpcode(WorldPacket& recvData)
     {
         // clear from petition store
         sPetitionMgr->RemovePetition(petition->PetitionGuid);
-        TC_LOG_DEBUG("network", "Invalid petition %s", petition->PetitionGuid.ToString().c_str());
+        TC_LOG_DEBUG("network", "Invalid petition {}", petition->PetitionGuid.ToString());
     }
 
     // fill petition store
@@ -227,7 +227,7 @@ void WorldSession::HandlePetitionShowSignatures(WorldPacket& recvData)
     Petition const* petition = sPetitionMgr->GetPetition(petitionGuid);
     if (!petition)
     {
-        TC_LOG_DEBUG("entities.player.items", "Petition %s is not found for player %s %s", petitionGuid.ToString().c_str(), GetPlayer()->GetGUID().ToString().c_str(), GetPlayer()->GetName().c_str());
+        TC_LOG_DEBUG("entities.player.items", "Petition {} is not found for player {} {}", petitionGuid.ToString(), GetPlayer()->GetGUID().ToString(), GetPlayer()->GetName());
         return;
     }
 
@@ -235,7 +235,7 @@ void WorldSession::HandlePetitionShowSignatures(WorldPacket& recvData)
     if (petition->PetitionType == GUILD_CHARTER_TYPE && _player->GetGuildId())
         return;
 
-    TC_LOG_DEBUG("network", "CMSG_PETITION_SHOW_SIGNATURES petition %s", petitionGuid.ToString().c_str());
+    TC_LOG_DEBUG("network", "CMSG_PETITION_SHOW_SIGNATURES petition {}", petitionGuid.ToString());
 
     SendPetitionSigns(petition, _player);
 }
@@ -244,8 +244,8 @@ void WorldSession::SendPetitionSigns(Petition const* petition, Player* sendTo)
 {
     SignaturesVector const& signatures = petition->Signatures;
     WorldPacket data(SMSG_PETITION_SHOW_SIGNATURES, (8 + 8 + 4 + 1 + signatures.size() * 12));
-    data << uint64(petition->PetitionGuid);                 // petition guid
-    data << uint64(petition->OwnerGuid);                    // owner guid
+    data << petition->PetitionGuid;                         // petition guid
+    data << petition->OwnerGuid;                            // owner guid
     data << uint32(petition->PetitionGuid.GetCounter());    // guild guid
     data << uint8(signatures.size());                       // sign's count
 
@@ -266,7 +266,7 @@ void WorldSession::HandleQueryPetition(WorldPacket& recvData)
     ObjectGuid petitionguid;
     recvData >> guildguid;                                 // in Trinity always same as GUID_LOPART(petitionguid)
     recvData >> petitionguid;                              // petition guid
-    TC_LOG_DEBUG("network", "CMSG_PETITION_QUERY Petition %s Guild GUID %u", petitionguid.ToString().c_str(), guildguid);
+    TC_LOG_DEBUG("network", "CMSG_PETITION_QUERY Petition {} Guild GUID {}", petitionguid.ToString(), guildguid);
 
     SendPetitionQueryOpcode(petitionguid);
 }
@@ -276,13 +276,13 @@ void WorldSession::SendPetitionQueryOpcode(ObjectGuid petitionguid)
     Petition const* petition = sPetitionMgr->GetPetition(petitionguid);
     if (!petition)
     {
-        TC_LOG_DEBUG("network", "CMSG_PETITION_QUERY failed for petition (%s)", petitionguid.ToString().c_str());
+        TC_LOG_DEBUG("network", "CMSG_PETITION_QUERY failed for petition ({})", petitionguid.ToString());
         return;
     }
 
     WorldPacket data(SMSG_PETITION_QUERY_RESPONSE, (4+8+petition->PetitionName.size()+1+1+4*12+2+10));
     data << uint32(petitionguid.GetCounter());              // guild/team guid (in Trinity always same as GUID_LOPART(petition guid)
-    data << uint64(petition->OwnerGuid);                    // charter owner guid
+    data << petition->OwnerGuid;                            // charter owner guid
     data << petition->PetitionName;                         // name (guild/arena team)
     data << uint8(0);                                       // some string
 
@@ -321,7 +321,7 @@ void WorldSession::SendPetitionQueryOpcode(ObjectGuid petitionguid)
 
 void WorldSession::HandlePetitionRenameGuild(WorldPacket& recvData)
 {
-    TC_LOG_DEBUG("network", "Received opcode MSG_PETITION_RENAME");   // ok
+    TC_LOG_DEBUG("network", "Received opcode MSG_PETITION_RENAME");
 
     ObjectGuid petitionGuid;
     std::string newName;
@@ -336,7 +336,7 @@ void WorldSession::HandlePetitionRenameGuild(WorldPacket& recvData)
     Petition* petition = sPetitionMgr->GetPetition(petitionGuid);
     if (!petition)
     {
-        TC_LOG_DEBUG("network", "CMSG_PETITION_QUERY failed for petition %s", petitionGuid.ToString().c_str());
+        TC_LOG_DEBUG("network", "CMSG_PETITION_QUERY failed for petition {}", petitionGuid.ToString());
         return;
     }
 
@@ -373,9 +373,9 @@ void WorldSession::HandlePetitionRenameGuild(WorldPacket& recvData)
     // update petition storage
     petition->UpdateName(newName);
 
-    TC_LOG_DEBUG("network", "Petition %s renamed to '%s'", petitionGuid.ToString().c_str(), newName.c_str());
-    WorldPacket data(MSG_PETITION_RENAME, (8+newName.size()+1));
-    data << uint64(petitionGuid);
+    TC_LOG_DEBUG("network", "Petition {} renamed to '{}'", petitionGuid.ToString(), newName);
+    WorldPacket data(MSG_PETITION_RENAME, (8 + newName.size() + 1));
+    data << petitionGuid;
     data << newName;
     SendPacket(&data);
 }
@@ -392,7 +392,7 @@ void WorldSession::HandleSignPetition(WorldPacket& recvData)
     Petition* petition = sPetitionMgr->GetPetition(petitionGuid);
     if (!petition)
     {
-        TC_LOG_ERROR("network", "Petition %s is not found for player %s %s", petitionGuid.ToString().c_str(), GetPlayer()->GetGUID().ToString().c_str(), GetPlayer()->GetName().c_str());
+        TC_LOG_ERROR("network", "Petition {} is not found for player {} {}", petitionGuid.ToString(), GetPlayer()->GetGUID().ToString(), GetPlayer()->GetName());
         return;
     }
 
@@ -400,8 +400,7 @@ void WorldSession::HandleSignPetition(WorldPacket& recvData)
     CharterTypes type = petition->PetitionType;
     uint8 signs = uint8(petition->Signatures.size());
 
-    ObjectGuid playerGuid = _player->GetGUID();
-    if (ownerGuid == playerGuid)
+    if (ownerGuid == _player->GetGUID())
         return;
 
     // not let enemies sign guild charter
@@ -461,9 +460,9 @@ void WorldSession::HandleSignPetition(WorldPacket& recvData)
     if (isSigned)
     {
         WorldPacket data(SMSG_PETITION_SIGN_RESULTS, (8+8+4));
-        data << uint64(petitionGuid);
-        data << uint64(_player->GetGUID());
-        data << (uint32)PETITION_SIGN_ALREADY_SIGNED;
+        data << petitionGuid;
+        data << _player->GetGUID();
+        data << uint32(PETITION_SIGN_ALREADY_SIGNED);
 
         // close at signer side
         SendPacket(&data);
@@ -475,13 +474,13 @@ void WorldSession::HandleSignPetition(WorldPacket& recvData)
     }
 
     // fill petition store
-    petition->AddSignature(GetAccountId(), playerGuid, false);
+    petition->AddSignature(GetAccountId(), _player->GetGUID(), false);
 
-    TC_LOG_DEBUG("network", "PETITION SIGN: %s by player: %s (%s Account: %u)", petitionGuid.ToString().c_str(), _player->GetName().c_str(), playerGuid.ToString().c_str(), GetAccountId());
+    TC_LOG_DEBUG("network", "PETITION SIGN: {} by player: {} ({} Account: {})", petitionGuid.ToString(), _player->GetName(), _player->GetGUID().ToString(), GetAccountId());
 
     WorldPacket data(SMSG_PETITION_SIGN_RESULTS, (8+8+4));
-    data << uint64(petitionGuid);
-    data << uint64(_player->GetGUID());
+    data << petitionGuid;
+    data << _player->GetGUID();
     data << uint32(PETITION_SIGN_OK);
     SendPacket(&data);
 
@@ -496,7 +495,7 @@ void WorldSession::HandleDeclinePetition(WorldPacket& recvData)
 
     ObjectGuid petitionguid;
     recvData >> petitionguid;                              // petition guid
-    TC_LOG_DEBUG("network", "Petition %s declined by %s", petitionguid.ToString().c_str(), _player->GetGUID().ToString().c_str());
+    TC_LOG_DEBUG("network", "Petition {} declined by {}", petitionguid.ToString(), _player->GetGUID().ToString());
 
     Petition const* petition = sPetitionMgr->GetPetition(petitionguid);
     if (!petition)
@@ -506,7 +505,7 @@ void WorldSession::HandleDeclinePetition(WorldPacket& recvData)
     if (Player* owner = ObjectAccessor::FindConnectedPlayer(petition->OwnerGuid))
     {
         WorldPacket data(MSG_PETITION_DECLINE, 8);
-        data << uint64(_player->GetGUID());
+        data << _player->GetGUID();
         owner->SendDirectMessage(&data);
     }
 }
@@ -531,7 +530,7 @@ void WorldSession::HandleOfferPetitionOpcode(WorldPacket& recvData)
 
     CharterTypes type = petition->PetitionType;
 
-    TC_LOG_DEBUG("network", "OFFER PETITION: type %u, %s, to %s", static_cast<uint32>(type), petitionGuid.ToString().c_str(), offererGuid.ToString().c_str());
+    TC_LOG_DEBUG("network", "OFFER PETITION: type {}, {}, to {}", static_cast<uint32>(type), petitionGuid.ToString(), offererGuid.ToString());
 
     if (!sWorld->getBoolConfig(CONFIG_ALLOW_TWO_SIDE_INTERACTION_GUILD) && GetPlayer()->GetTeam() != player->GetTeam())
     {
@@ -601,12 +600,12 @@ void WorldSession::HandleTurnInPetitionOpcode(WorldPacket& recvData)
     if (!item)
         return;
 
-    TC_LOG_DEBUG("network", "Petition %s turned in by %s", petitionGuid.ToString().c_str(), _player->GetGUID().ToString().c_str());
+    TC_LOG_DEBUG("network", "Petition {} turned in by {}", petitionGuid.ToString(), _player->GetGUID().ToString());
 
     Petition const* petition = sPetitionMgr->GetPetition(petitionGuid);
     if (!petition)
     {
-        TC_LOG_ERROR("entities.player.cheat", "Player %s %s tried to turn in petition (%s) that is not present in the database", _player->GetName().c_str(), _player->GetGUID().ToString().c_str(), petitionGuid.ToString().c_str());
+        TC_LOG_ERROR("entities.player.cheat", "Player {} {} tried to turn in petition ({}) that is not present in the database", _player->GetName(), _player->GetGUID().ToString(), petitionGuid.ToString());
         return;
     }
 
@@ -624,7 +623,7 @@ void WorldSession::HandleTurnInPetitionOpcode(WorldPacket& recvData)
         if (_player->GetGuildId())
         {
             data.Initialize(SMSG_TURN_IN_PETITION_RESULTS, 4);
-            data << (uint32)PETITION_TURN_ALREADY_IN_GUILD;
+            data << uint32(PETITION_TURN_ALREADY_IN_GUILD);
             _player->SendDirectMessage(&data);
             return;
         }
@@ -720,12 +719,12 @@ void WorldSession::HandleTurnInPetitionOpcode(WorldPacket& recvData)
 
         // Register arena team
         sArenaTeamMgr->AddArenaTeam(arenaTeam);
-        TC_LOG_DEBUG("network", "PetitonsHandler: Arena team (guid: %u) added to ObjectMgr", arenaTeam->GetId());
+        TC_LOG_DEBUG("network", "PetitonsHandler: Arena team (guid: {}) added to ObjectMgr", arenaTeam->GetId());
 
         // Add members
         for (Signature const& signature : signatures)
         {
-            TC_LOG_DEBUG("network", "PetitionsHandler: Adding arena team (guid: %u) member %s", arenaTeam->GetId(), signature.second.ToString().c_str());
+            TC_LOG_DEBUG("network", "PetitionsHandler: Adding arena team (guid: {}) member {}", arenaTeam->GetId(), signature.second.ToString());
             arenaTeam->AddMember(signature.second);
         }
     }
@@ -733,7 +732,7 @@ void WorldSession::HandleTurnInPetitionOpcode(WorldPacket& recvData)
     sPetitionMgr->RemovePetition(petitionGuid);
 
     // created
-    TC_LOG_DEBUG("network", "Player %s (%s) turning in petition %s", _player->GetName().c_str(), _player->GetGUID().ToString().c_str(), petitionGuid.ToString().c_str());
+    TC_LOG_DEBUG("network", "Player {} ({}) turning in petition {}", _player->GetName(), _player->GetGUID().ToString(), petitionGuid.ToString());
 
     data.Initialize(SMSG_TURN_IN_PETITION_RESULTS, 4);
     data << (uint32)PETITION_TURN_OK;
@@ -755,7 +754,7 @@ void WorldSession::SendPetitionShowList(ObjectGuid guid)
     Creature* creature = GetPlayer()->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_PETITIONER);
     if (!creature)
     {
-        TC_LOG_DEBUG("network", "WORLD: HandlePetitionShowListOpcode - %s not found or you can't interact with him.", guid.ToString().c_str());
+        TC_LOG_DEBUG("network", "WORLD: HandlePetitionShowListOpcode - {} not found or you can't interact with him.", guid.ToString());
         return;
     }
 

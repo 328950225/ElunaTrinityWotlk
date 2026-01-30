@@ -218,7 +218,14 @@ enum TrinityStrings
     LANG_INVALID_GAMEOBJECT_TYPE          = 176,
     LANG_GAMEOBJECT_DAMAGED               = 177,
     LANG_GRID_POSITION                    = 178,
-    // 179-185 used in master branch
+
+    LANG_PHASESHIFT_STATUS                = 179, // master branch ONLY
+    LANG_PHASESHIFT_PHASES                = 180, // master branch ONLY
+    LANG_PHASESHIFT_VISIBLE_MAP_IDS       = 181, // master branch ONLY
+    LANG_PHASESHIFT_UI_WORLD_MAP_AREA_SWAPS = 182,//master branch ONLY
+    LANG_PHASE_FLAG_COSMETIC              = 183, // master branch ONLY
+    LANG_PHASE_FLAG_PERSONAL              = 184, // master branch ONLY
+    //                                      185 not used
     LANG_TRANSPORT_POSITION               = 186,
     LANG_PARTIAL_GROUP_SUMMON             = 187,
     LANG_2FA_SECRET_TOO_LONG              = 188,
@@ -251,7 +258,7 @@ enum TrinityStrings
     LANG_RESET_TALENTS_ONLINE             = 213,
     LANG_RESET_TALENTS_OFFLINE            = 214,
     LANG_RESET_SPELLS                     = 215,
-    LANG_RESET_TALENTS                    = 216,
+    // unused                             = 216,
 
     LANG_RESETALL_UNKNOWN_CASE            = 217,
     LANG_RESETALL_SPELLS                  = 218,
@@ -337,7 +344,7 @@ enum TrinityStrings
     LANG_COMMAND_NPC_SHOWLOOT_LABEL_2     = 293,
     LANG_COMMAND_NPC_SHOWLOOT_SUBLABEL    = 294,
     LANG_COMMAND_NPC_SHOWLOOT_ENTRY_2     = 295,
-      // 296 free
+    LANG_COMMAND_NPC_SHOWLOOT_CURRENCY    = 296, // master branch ONLY
 
       // END
     LANG_COMMAND_WANDER_DISTANCE          = 297,
@@ -428,7 +435,23 @@ enum TrinityStrings
     LANG_COMMAND_ACC_LOCK_IP_HELP         = 380,
     LANG_COMMAND_ACC_PASSWORD_HELP        = 381,
     LANG_COMMAND_ACCOUNT_HELP             = 382,
-    // Room for more level 2                383-399 not used
+    LANG_COMMAND_LEARN_HELP               = 383,
+    LANG_COMMAND_UNLEARN_HELP             = 384,
+    LANG_COMMAND_LEARN_MY_QUESTS_HELP     = 385,
+    LANG_COMMAND_LEARN_MY_TRAINER_HELP    = 386,
+    LANG_COMMAND_LEARN_ALL_BLIZZARD_HELP  = 387,
+    LANG_COMMAND_LEARN_ALL_DEBUG_HELP     = 388,
+    LANG_COMMAND_LEARN_ALL_CRAFTS_HELP    = 389,
+    LANG_COMMAND_LEARN_ALL_DEFAULT_HELP   = 390,
+    LANG_COMMAND_LEARN_ALL_LANGUAGES_HELP = 391,
+    LANG_COMMAND_LEARN_ALL_RECIPES_HELP   = 392,
+    LANG_COMMAND_LEARN_ALL_TALENTS_HELP   = 393,
+    LANG_COMMAND_LEARN_ALL_PETTALENT_HELP = 394,
+    LANG_COMMAND_BG_START_HELP            = 395,
+    LANG_COMMAND_BG_STOP_HELP             = 396,
+    LANG_CHANGEFACTION_NOT_ELIGIBLE_10    = 397,
+    LANG_CHANGEFACTION_NOT_ELIGIBLE_60    = 398,
+    // Room for more level 2                399 not used
 
     // level 3 chat
     LANG_SCRIPTS_RELOADED                 = 400,
@@ -806,7 +829,9 @@ enum TrinityStrings
     LANG_ACCOUNT_SEC_TYPE                 = 880,
     LANG_RBAC_EMAIL_REQUIRED              = 881,
     //                                    = 882, LANG_PINFO_CHR_MAP_WITH_AREA
-    // Room for in-game strings             883-999 not used
+    LANG_ACCOUNT                          = 883,
+    LANG_COMMAND_QUEST_OBJECTIVE_NOTFOUND = 884, // master branch ONLY
+    // Room for in-game strings             885-999 not used
 
     // Level 4 (CLI only commands)
     LANG_COMMAND_EXIT                     = 1000,
@@ -874,7 +899,7 @@ enum TrinityStrings
     LANG_NO_PET_FOUND                     = 1123,
     LANG_WRONG_PET_TYPE                   = 1124,
     LANG_COMMAND_LEARN_PET_TALENTS        = 1125,
-    LANG_RESET_PET_TALENTS                = 1126,
+    // unused                             = 1126,
     LANG_RESET_PET_TALENTS_ONLINE         = 1127,
     LANG_TAXINODE_ENTRY_LIST_CHAT         = 1128,
     LANG_TAXINODE_ENTRY_LIST_CONSOLE      = 1129,
@@ -963,7 +988,14 @@ enum TrinityStrings
     LANG_COMMAND_BOSS_MULTIPLE_SPAWN_ETY  = 1209,
     LANG_COMMAND_GO_BOSS_FAILED           = 1210,
     LANG_COMMAND_WENT_TO_BOSS             = 1211,
-    // 1212-1499 - free
+    LANG_GUILD_INFO_LEVEL                 = 1212, // master branch ONLY
+    LANG_ACCOUNT_BNET_LINKED              = 1213, // master branch ONLY
+    LANG_ACCOUNT_OR_BNET_DOES_NOT_EXIST   = 1214, // master branch ONLY
+    LANG_ACCOUNT_ALREADY_LINKED           = 1215, // master branch ONLY
+    LANG_ACCOUNT_BNET_UNLINKED            = 1216, // master branch ONLY
+    LANG_ACCOUNT_BNET_NOT_LINKED          = 1217, // master branch ONLY
+    LANG_DISALLOW_TICKETS_CONFIG          = 1218, // master branch ONLY
+    // 1219-1499 - free
 
     // Command argument parsers
     LANG_CMDPARSER_EITHER                 = 1500,
@@ -982,9 +1014,13 @@ enum TrinityStrings
     LANG_CMDPARSER_ITEM_NO_EXIST          = 1513,
     LANG_CMDPARSER_SPELL_NO_EXIST         = 1514,
     LANG_CMDPARSER_EXACT_SEQ_MISMATCH     = 1515,
+    LANG_CMDPARSER_CURRENCY_NO_EXIST      = 1516, // master branch ONLY
+    LANG_CMDPARSER_QUEST_NO_EXIST         = 1517,
 
-    // 1212-1998 - free
-    LANG_DO_NOT_USE_6X_DEBUG_AREATRIGGER_LEFT = 1999,
+    // 1516-1996 - free
+    LANG_DEBUG_AREATRIGGER_ENTITY_ENTERED = 1997, // master branch ONLY
+    LANG_DEBUG_AREATRIGGER_ENTITY_LEFT    = 1998, // master branch ONLY
+    LANG_DEBUG_AREATRIGGER_LEFT           = 1999, // master branch ONLY
     // Ticket Strings 2000-2030
     LANG_COMMAND_TICKETNEW                = 2000,
     LANG_COMMAND_TICKETUPDATED            = 2001,
@@ -1026,7 +1062,7 @@ enum TrinityStrings
     LANG_COMMAND_NO_FROZEN_PLAYERS        = 5004,
     LANG_COMMAND_LIST_FREEZE              = 5005,
     LANG_COMMAND_PERMA_FROZEN_PLAYER      = 5006,
-    //                                    = 5007, unused
+    LANG_PHASE_NOTFOUND                   = 5007, // master branch ONLY
     LANG_INSTANCE_CLOSED                  = 5008,
     LANG_COMMAND_PLAYED_TO_ALL            = 5009,
     LANG_NPCINFO_LINKGUID                 = 5010,
@@ -1088,14 +1124,14 @@ enum TrinityStrings
     LANG_COMMAND_MUTEHISTORY_OUTPUT       = 5061,
 
     // Scene debugs commands [Master only, not used in 3.3.5]
-    /* LANG_COMMAND_SCENE_DEBUG_ON        = 5062,
-    LANG_COMMAND_SCENE_DEBUG_OFF          = 5063,
-    LANG_COMMAND_SCENE_DEBUG_PLAY         = 5064,
-    LANG_COMMAND_SCENE_DEBUG_TRIGGER      = 5065,
-    LANG_COMMAND_SCENE_DEBUG_CANCEL       = 5066,
-    LANG_COMMAND_SCENE_DEBUG_COMPLETE     = 5067,
-    LANG_DEBUG_SCENE_OBJECT_LIST          = 5068,
-    LANG_DEBUG_SCENE_OBJECT_DETAIL        = 5069, */
+    LANG_COMMAND_SCENE_DEBUG_ON           = 5062, // master branch ONLY
+    LANG_COMMAND_SCENE_DEBUG_OFF          = 5063, // master branch ONLY
+    LANG_COMMAND_SCENE_DEBUG_PLAY         = 5064, // master branch ONLY
+    LANG_COMMAND_SCENE_DEBUG_TRIGGER      = 5065, // master branch ONLY
+    LANG_COMMAND_SCENE_DEBUG_CANCEL       = 5066, // master branch ONLY
+    LANG_COMMAND_SCENE_DEBUG_COMPLETE     = 5067, // master branch ONLY
+    LANG_DEBUG_SCENE_OBJECT_LIST          = 5068, // master branch ONLY
+    LANG_DEBUG_SCENE_OBJECT_DETAIL        = 5069, // master branch ONLY
 
     // Strings added for dynamic_spawning
     LANG_SPAWNINFO_GROUP_ID               = 5070,
@@ -1115,8 +1151,11 @@ enum TrinityStrings
     LANG_NPCINFO_UNIT_FIELD_FLAGS_2       = 5084, // master branch ONLY
     LANG_NPCINFO_UNIT_FIELD_FLAGS_3       = 5085, // master branch ONLY
     LANG_NPCINFO_NPC_FLAGS                = 5086, // master branch ONLY
+    LANG_NPCINFO_PHASE_IDS                = 5087, // master branch ONLY
+    LANG_SCENARIO                         = 5088, // master branch ONLY
+    LANG_OBJECTINFO_STRINGIDS             = 5089,
 
-    // Room for more Trinity strings        5084-6603
+    // Room for more Trinity strings        5090-6603
 
     // Level requirement notifications
     LANG_SAY_REQ                          = 6604,
@@ -1201,6 +1240,9 @@ enum TrinityStrings
     LANG_CREATURE_NOT_AI_ENABLED                  = 11015,
     LANG_SELECT_PLAYER_OR_PET                     = 11016,
     LANG_SHUTDOWN_DELAYED                         = 11017,
-    LANG_SHUTDOWN_CANCELLED                       = 11018
+    LANG_SHUTDOWN_CANCELLED                       = 11018,
+    LANG_YOU_CHANGE_POWER                         = 11019, // master branch ONLY
+    LANG_YOUR_POWER_CHANGED                       = 11020, // master branch ONLY
+    LANG_INVALID_POWER_NAME                       = 11021  // master branch ONLY
 };
 #endif

@@ -45,27 +45,28 @@ MovementGeneratorType FleeingMovementGenerator<T>::GetMovementGeneratorType() co
 }
 
 template<class T>
-void FleeingMovementGenerator<T>::DoInitialize(T* owner)
+bool FleeingMovementGenerator<T>::DoInitialize(T* owner)
 {
     MovementGenerator::RemoveFlag(MOVEMENTGENERATOR_FLAG_INITIALIZATION_PENDING | MOVEMENTGENERATOR_FLAG_TRANSITORY | MOVEMENTGENERATOR_FLAG_DEACTIVATED);
     MovementGenerator::AddFlag(MOVEMENTGENERATOR_FLAG_INITIALIZED);
 
     if (!owner || !owner->IsAlive())
-        return;
+        return false;
 
     // TODO: UNIT_FIELD_FLAGS should not be handled by generators
-    owner->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_FLEEING);
+    owner->SetUnitFlag(UNIT_FLAG_FLEEING);
 
     _path = nullptr;
     SetTargetLocation(owner);
+    return true;
 }
 
 template<class T>
-void FleeingMovementGenerator<T>::DoReset(T* owner)
+bool FleeingMovementGenerator<T>::DoReset(T* owner)
 {
     MovementGenerator::RemoveFlag(MOVEMENTGENERATOR_FLAG_TRANSITORY | MOVEMENTGENERATOR_FLAG_DEACTIVATED);
 
-    DoInitialize(owner);
+    return DoInitialize(owner);
 }
 
 template<class T>
@@ -113,7 +114,7 @@ void FleeingMovementGenerator<Player>::DoFinalize(Player* owner, bool active, bo
 
     if (active)
     {
-        owner->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_FLEEING);
+        owner->RemoveUnitFlag(UNIT_FLAG_FLEEING);
         owner->ClearUnitState(UNIT_STATE_FLEEING_MOVE);
         owner->StopMoving();
     }
@@ -126,7 +127,7 @@ void FleeingMovementGenerator<Creature>::DoFinalize(Creature* owner, bool active
 
     if (active)
     {
-        owner->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_FLEEING);
+        owner->RemoveUnitFlag(UNIT_FLAG_FLEEING);
         owner->ClearUnitState(UNIT_STATE_FLEEING_MOVE);
         if (owner->GetVictim())
             owner->SetTarget(owner->EnsureVictim()->GetGUID());
@@ -223,10 +224,10 @@ template FleeingMovementGenerator<Player>::FleeingMovementGenerator(ObjectGuid);
 template FleeingMovementGenerator<Creature>::FleeingMovementGenerator(ObjectGuid);
 template MovementGeneratorType FleeingMovementGenerator<Player>::GetMovementGeneratorType() const;
 template MovementGeneratorType FleeingMovementGenerator<Creature>::GetMovementGeneratorType() const;
-template void FleeingMovementGenerator<Player>::DoInitialize(Player*);
-template void FleeingMovementGenerator<Creature>::DoInitialize(Creature*);
-template void FleeingMovementGenerator<Player>::DoReset(Player*);
-template void FleeingMovementGenerator<Creature>::DoReset(Creature*);
+template bool FleeingMovementGenerator<Player>::DoInitialize(Player*);
+template bool FleeingMovementGenerator<Creature>::DoInitialize(Creature*);
+template bool FleeingMovementGenerator<Player>::DoReset(Player*);
+template bool FleeingMovementGenerator<Creature>::DoReset(Creature*);
 template bool FleeingMovementGenerator<Player>::DoUpdate(Player*, uint32);
 template bool FleeingMovementGenerator<Creature>::DoUpdate(Creature*, uint32);
 template void FleeingMovementGenerator<Player>::DoDeactivate(Player*);
@@ -250,13 +251,13 @@ bool TimedFleeingMovementGenerator::Update(Unit* owner, uint32 diff)
     return FleeingMovementGenerator<Creature>::DoUpdate(owner->ToCreature(), diff);
 }
 
-void TimedFleeingMovementGenerator::Finalize(Unit* owner, bool active, bool/* movementInform*/)
+void TimedFleeingMovementGenerator::Finalize(Unit* owner, bool active, bool movementInform)
 {
     AddFlag(MOVEMENTGENERATOR_FLAG_FINALIZED);
     if (!active)
         return;
 
-    owner->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_FLEEING);
+    owner->RemoveUnitFlag(UNIT_FLAG_FLEEING);
     owner->StopMoving();
     if (Unit* victim = owner->GetVictim())
     {
@@ -265,6 +266,13 @@ void TimedFleeingMovementGenerator::Finalize(Unit* owner, bool active, bool/* mo
             owner->AttackStop();
             owner->ToCreature()->AI()->AttackStart(victim);
         }
+    }
+
+    if (movementInform)
+    {
+        Creature* ownerCreature = owner->ToCreature();
+        if (CreatureAI* AI = ownerCreature ? ownerCreature->AI() : nullptr)
+            AI->MovementInform(TIMED_FLEEING_MOTION_TYPE, 0);
     }
 }
 

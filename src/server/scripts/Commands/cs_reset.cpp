@@ -99,7 +99,7 @@ public:
         ChrClassesEntry const* classEntry = sChrClassesStore.LookupEntry(player->GetClass());
         if (!classEntry)
         {
-            TC_LOG_ERROR("misc", "Class %u not found in DBC (Wrong DBC files?)", player->GetClass());
+            TC_LOG_ERROR("misc", "Class {} not found in DBC (Wrong DBC files?)", player->GetClass());
             return false;
         }
 
@@ -117,9 +117,9 @@ public:
         if (player->GetShapeshiftForm() == FORM_NONE)
             player->InitDisplayIds();
 
-        player->SetByteValue(UNIT_FIELD_BYTES_2, UNIT_BYTES_2_OFFSET_PVP_FLAG, UNIT_BYTE2_FLAG_PVP);
+        player->ReplaceAllPvpFlags(UNIT_BYTE2_FLAG_PVP);
 
-        player->SetUInt32Value(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED);
+        player->ReplaceAllUnitFlags(UNIT_FLAG_PLAYER_CONTROLLED);
 
         //-1 is default value
         player->SetUInt32Value(PLAYER_FIELD_WATCHED_FACTION_INDEX, uint32(-1));
@@ -223,10 +223,9 @@ public:
                 Unit* owner = creature->GetOwner();
                 if (owner && owner->GetTypeId() == TYPEID_PLAYER && creature->ToPet()->IsPermanentPetFor(owner->ToPlayer()))
                 {
-                    creature->ToPet()->resetTalents();
+                    creature->ToPet()->resetTalents(true);
                     owner->ToPlayer()->SendTalentsInfoData(true);
 
-                    ChatHandler(owner->ToPlayer()->GetSession()).SendSysMessage(LANG_RESET_PET_TALENTS);
                     if (!handler->GetSession() || handler->GetSession()->GetPlayer() != owner->ToPlayer())
                         handler->PSendSysMessage(LANG_RESET_PET_TALENTS_ONLINE, handler->GetNameLink(owner->ToPlayer()).c_str());
                 }
@@ -242,17 +241,16 @@ public:
         {
             target->ResetTalents(true);
             target->SendTalentsInfoData(false);
-            ChatHandler(target->GetSession()).SendSysMessage(LANG_RESET_TALENTS);
             if (!handler->GetSession() || handler->GetSession()->GetPlayer() != target)
                 handler->PSendSysMessage(LANG_RESET_TALENTS_ONLINE, handler->GetNameLink(target).c_str());
 
             Pet* pet = target->GetPet();
-            Pet::resetTalentsForAllPetsOf(target, pet);
+            Pet::resetTalentsForAllPetsOf(target, pet, true);
             if (pet)
                 target->SendTalentsInfoData(true);
             return true;
         }
-        else if (targetGuid)
+        else if (!targetGuid.IsEmpty())
         {
             CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_ADD_AT_LOGIN_FLAG);
             stmt->setUInt16(0, uint16(AT_LOGIN_NONE | AT_LOGIN_RESET_PET_TALENTS));

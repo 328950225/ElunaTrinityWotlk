@@ -25,6 +25,11 @@
 #include "ScriptMgr.h"
 #include "TemporarySummon.h"
 
+Position const BunnySpawnPosition = { 1776.27f, 1348.74f, 19.20f };
+Position const EarthBunnySpawnPosition = { 1765.28f, 1347.46f, 18.55f, 6.17f };
+Position const HeadlessHorsemanSpawnPosition = { 1765.00f, 1347.00f, 15.00f };
+Position const HeadlessHorsemanHeadSpawnPosition = { 1788.54f, 1348.05f, 18.88f }; // Guessed
+
 ObjectData const creatureData[] =
 {
     { NPC_HEADLESS_HORSEMAN_HEAD, DATA_HORSEMAN_HEAD     },
@@ -53,7 +58,7 @@ class instance_scarlet_monastery : public InstanceMapScript
 
         struct instance_scarlet_monastery_InstanceMapScript : public InstanceScript
         {
-            instance_scarlet_monastery_InstanceMapScript(Map* map) : InstanceScript(map)
+            instance_scarlet_monastery_InstanceMapScript(InstanceMap* map) : InstanceScript(map)
             {
                 SetHeaders(DataHeader);
                 SetBossNumber(EncounterCount);
@@ -66,7 +71,7 @@ class instance_scarlet_monastery : public InstanceMapScript
                 _horsemanState = IN_PROGRESS;
                 for (uint32 data : {DATA_PUMPKIN_SHRINE, DATA_LOOSELY_TURNED_SOIL})
                     if (GameObject* gob = GetGameObject(data))
-                        gob->SetFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
+                        gob->SetFlag(GO_FLAG_NOT_SELECTABLE);
 
                 instance->SummonCreature(NPC_HEADLESS_HORSEMAN_HEAD, HeadlessHorsemanHeadSpawnPosition);
                 instance->SummonCreature(NPC_FLAME_BUNNY, BunnySpawnPosition);

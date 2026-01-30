@@ -58,29 +58,30 @@ bool FlightPathMovementGenerator::GetResetPosition(Unit* /*owner*/, float& x, fl
     return true;
 }
 
-void FlightPathMovementGenerator::DoInitialize(Player* owner)
+bool FlightPathMovementGenerator::DoInitialize(Player* owner)
 {
     RemoveFlag(MOVEMENTGENERATOR_FLAG_INITIALIZATION_PENDING | MOVEMENTGENERATOR_FLAG_DEACTIVATED);
     AddFlag(MOVEMENTGENERATOR_FLAG_INITIALIZED);
 
-    DoReset(owner);
+    bool returnValue = DoReset(owner);
     InitEndGridInfo();
+    return returnValue;
 }
 
-void FlightPathMovementGenerator::DoReset(Player* owner)
+bool FlightPathMovementGenerator::DoReset(Player* owner)
 {
     RemoveFlag(MOVEMENTGENERATOR_FLAG_DEACTIVATED);
 
     owner->CombatStopWithPets();
-    owner->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_REMOVE_CLIENT_CONTROL | UNIT_FLAG_TAXI_FLIGHT);
+    owner->SetUnitFlag(UNIT_FLAG_REMOVE_CLIENT_CONTROL | UNIT_FLAG_ON_TAXI);
 
     uint32 end = GetPathAtMapEnd();
     uint32 currentNodeId = GetCurrentNode();
 
     if (currentNodeId == end)
     {
-        TC_LOG_DEBUG("movement.flightpath", "FlightPathMovementGenerator::DoReset: trying to start a flypath from the end point. %s", owner->GetDebugInfo().c_str());
-        return;
+        TC_LOG_DEBUG("movement.flightpath", "FlightPathMovementGenerator::DoReset: trying to start a flypath from the end point. {}", owner->GetDebugInfo());
+        return false;
     }
 
     Movement::MoveSplineInit init(owner);
@@ -95,6 +96,7 @@ void FlightPathMovementGenerator::DoReset(Player* owner)
     init.SetFly();
     init.SetVelocity(PLAYER_FLIGHT_SPEED);
     init.Launch();
+    return true;
 }
 
 bool FlightPathMovementGenerator::DoUpdate(Player* owner, uint32 /*diff*/)
@@ -156,7 +158,7 @@ void FlightPathMovementGenerator::DoFinalize(Player* owner, bool active, bool/* 
     uint32 taxiNodeId = owner->m_taxi.GetTaxiDestination();
     owner->m_taxi.ClearTaxiDestinations();
     owner->Dismount();
-    owner->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_REMOVE_CLIENT_CONTROL | UNIT_FLAG_TAXI_FLIGHT);
+    owner->RemoveUnitFlag(UNIT_FLAG_REMOVE_CLIENT_CONTROL | UNIT_FLAG_ON_TAXI);
 
     if (owner->m_taxi.empty())
     {
@@ -259,7 +261,7 @@ void FlightPathMovementGenerator::DoEventIfAny(Player* owner, TaxiPathNodeEntry 
 
     if (uint32 eventid = departure ? node->DepartureEventID : node->ArrivalEventID)
     {
-        TC_LOG_DEBUG("maps.script", "FlightPathMovementGenerator::DoEventIfAny: taxi %s event %u of node %u of path %u for player %s", departure ? "departure" : "arrival", eventid, node->NodeIndex, node->PathID, owner->GetName().c_str());
+        TC_LOG_DEBUG("maps.script", "FlightPathMovementGenerator::DoEventIfAny: taxi {} event {} of node {} of path {} for player {}", departure ? "departure" : "arrival", eventid, node->NodeIndex, node->PathID, owner->GetName());
         owner->GetMap()->ScriptsStart(sEventScripts, eventid, owner, owner);
     }
 }
@@ -289,7 +291,7 @@ void FlightPathMovementGenerator::PreloadEndGrid()
     // Load the grid
     if (endMap)
     {
-        TC_LOG_DEBUG("movement.flightpath", "FlightPathMovementGenerator::PreloadEndGrid: preloading grid (%f, %f) for map %u at node index %u/%u", _endGridX, _endGridY, _endMapId, _preloadTargetNode, uint32(_path.size() - 1));
+        TC_LOG_DEBUG("movement.flightpath", "FlightPathMovementGenerator::PreloadEndGrid: preloading grid ({}, {}) for map {} at node index {}/{}", _endGridX, _endGridY, _endMapId, _preloadTargetNode, uint32(_path.size() - 1));
         endMap->LoadGrid(_endGridX, _endGridY);
     }
     else

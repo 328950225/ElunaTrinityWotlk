@@ -8,7 +8,7 @@
 # WITHOUT ANY WARRANTY, to the extent permitted by law; without even the
 # implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
-file(GLOB sources *.cpp *.h)
+file(GLOB sources *.cpp *.c *.h)
 
 add_library(gsoap STATIC ${sources})
 
@@ -31,5 +31,5 @@ if (MSVC)
   # Little fix for MSVC / Windows platforms
   target_compile_definitions(gsoap
     PRIVATE
-      -D_CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES=0)
+      _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES=0)
 endif()

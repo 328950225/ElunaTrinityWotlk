@@ -30,7 +30,7 @@ enum Misc
     NPC_GAHZRILLA       = 7273,
 
     // Paths
-    PATH_ADDS           = 81553
+    PATH_ADDS           = 652424
 };
 
 int const pyramidSpawnTotal = 54;
@@ -111,7 +111,7 @@ public:
 
     struct instance_zulfarrak_InstanceMapScript : public InstanceScript
     {
-        instance_zulfarrak_InstanceMapScript(Map* map) : InstanceScript(map)
+        instance_zulfarrak_InstanceMapScript(InstanceMap* map) : InstanceScript(map)
         {
             SetHeaders(DataHeader);
             GahzRillaEncounter = NOT_STARTED;

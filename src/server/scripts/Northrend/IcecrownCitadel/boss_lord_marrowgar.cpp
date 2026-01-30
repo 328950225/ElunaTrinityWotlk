@@ -15,7 +15,6 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "ScriptMgr.h"
 #include "icecrown_citadel.h"
 #include "InstanceScript.h"
 #include "Map.h"
@@ -25,11 +24,12 @@
 #include "Player.h"
 #include "PointMovementGenerator.h"
 #include "ScriptedCreature.h"
+#include "ScriptMgr.h"
 #include "SpellAuras.h"
 #include "SpellScript.h"
 #include "TemporarySummon.h"
 
-enum ScriptTexts
+enum MarrowgarTexts
 {
     SAY_ENTER_ZONE              = 0,
     SAY_AGGRO                   = 1,
@@ -41,7 +41,7 @@ enum ScriptTexts
     EMOTE_BONE_STORM            = 7,
 };
 
-enum Spells
+enum MarrowgarSpells
 {
     // Lord Marrowgar
     SPELL_BONE_SLICE            = 69055,
@@ -61,7 +61,7 @@ enum Spells
 
 uint32 const BoneSpikeSummonId[3] = {69062, 72669, 72670};
 
-enum Events
+enum MarrowgarEvents
 {
     EVENT_BONE_SPIKE_GRAVEYARD  = 1,
     EVENT_COLDFLAME             = 2,
@@ -78,13 +78,13 @@ enum Events
     EVENT_GROUP_SPECIAL         = 1,
 };
 
-enum MovementPoints
+enum MarrowgarPoints
 {
     POINT_TARGET_BONESTORM_PLAYER   = 36612631,
     POINT_TARGET_COLDFLAME          = 36672631,
 };
 
-enum MiscInfo
+enum MarrowgarMisc
 {
     DATA_COLDFLAME_GUID             = 0,
 
@@ -98,7 +98,7 @@ enum MiscInfo
     MAX_BONE_SPIKE_IMMUNE           = 3,
 };
 
-enum Actions
+enum MarrowgarActions
 {
     ACTION_CLEAR_SPIKE_IMMUNITIES = 1,
     ACTION_TALK_ENTER_ZONE        = 2
@@ -129,6 +129,7 @@ class BoneSpikeTargetSelector
         UnitAI* _ai;
 };
 
+// 36612 - Lord Marrowgar
 struct boss_lord_marrowgar : public BossAI
 {
     boss_lord_marrowgar(Creature* creature) : BossAI(creature, DATA_LORD_MARROWGAR)
@@ -354,6 +355,7 @@ private:
 
 typedef boss_lord_marrowgar MarrowgarAI;
 
+// 36672 - Coldflame
 struct npc_coldflame : public ScriptedAI
 {
     npc_coldflame(Creature* creature) : ScriptedAI(creature) { }
@@ -412,6 +414,7 @@ private:
     EventMap _events;
 };
 
+// 36619, 38711, 38712 - Bone Spike
 struct npc_bone_spike : public ScriptedAI
 {
     npc_bone_spike(Creature* creature) : ScriptedAI(creature), _hasTrappedUnit(false)
@@ -455,10 +458,12 @@ struct npc_bone_spike : public ScriptedAI
         /// @HACK - Change passenger offset to the one taken directly from sniffs
         /// Remove this when proper calculations are implemented.
         /// This fixes healing spiked people
-        Movement::MoveSplineInit init(passenger);
-        init.DisableTransportPathTransformations();
-        init.MoveTo(-0.02206125f, -0.02132235f, 5.514783f, false);
-        passenger->GetMotionMaster()->LaunchMoveSpline(std::move(init), EVENT_VEHICLE_BOARD, MOTION_PRIORITY_HIGHEST);
+        std::function<void(Movement::MoveSplineInit&)> initializer = [](Movement::MoveSplineInit& init)
+        {
+            init.DisableTransportPathTransformations();
+            init.MoveTo(-0.02206125f, -0.02132235f, 5.514783f, false);
+        };
+        passenger->GetMotionMaster()->LaunchMoveSpline(std::move(initializer), EVENT_VEHICLE_BOARD, MOTION_PRIORITY_HIGHEST);
     }
 
     void UpdateAI(uint32 diff) override
@@ -478,6 +483,7 @@ private:
     bool _hasTrappedUnit;
 };
 
+// 69140 - Coldflame
 class spell_marrowgar_coldflame : public SpellScript
 {
     PrepareSpellScript(spell_marrowgar_coldflame);
@@ -509,6 +515,7 @@ class spell_marrowgar_coldflame : public SpellScript
     }
 };
 
+// 72705 - Coldflame (Bonestorm)
 class spell_marrowgar_coldflame_bonestorm : public SpellScript
 {
     PrepareSpellScript(spell_marrowgar_coldflame_bonestorm);
@@ -526,6 +533,7 @@ class spell_marrowgar_coldflame_bonestorm : public SpellScript
     }
 };
 
+// 69146, 70823, 70824, 70825 - Coldflame (Damage)
 class spell_marrowgar_coldflame_damage : public AuraScript
 {
     PrepareAuraScript(spell_marrowgar_coldflame_damage);
@@ -535,7 +543,7 @@ class spell_marrowgar_coldflame_damage : public AuraScript
         if (target->HasAura(SPELL_IMPALED))
             return false;
 
-        if (target->GetExactDist2d(GetOwner()) > GetSpellInfo()->Effects[EFFECT_0].CalcRadius())
+        if (target->GetExactDist2d(GetOwner()) > GetEffectInfo(EFFECT_0).CalcRadius())
             return false;
 
         if (Aura* aur = target->GetAura(GetId()))
@@ -551,6 +559,7 @@ class spell_marrowgar_coldflame_damage : public AuraScript
     }
 };
 
+// 69057, 70826, 72088, 72089 - Bone Spike Graveyard
 class spell_marrowgar_bone_spike_graveyard : public SpellScript
 {
     PrepareSpellScript(spell_marrowgar_bone_spike_graveyard);
@@ -610,6 +619,7 @@ class spell_marrowgar_bone_spike_graveyard : public SpellScript
     }
 };
 
+// 69075, 70834, 70835, 70836 - Bone Storm
 class spell_marrowgar_bone_storm : public SpellScript
 {
     PrepareSpellScript(spell_marrowgar_bone_storm);
@@ -625,6 +635,7 @@ class spell_marrowgar_bone_storm : public SpellScript
     }
 };
 
+// 69055, 70814 - Bone Slice
 class spell_marrowgar_bone_slice : public SpellScript
 {
     PrepareSpellScript(spell_marrowgar_bone_slice);

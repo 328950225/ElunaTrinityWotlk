@@ -58,7 +58,7 @@ enum Belnistrasz
     EVENT_FIREBALL               = 5,
     EVENT_FROST_NOVA             = 6,
 
-    PATH_ESCORT                  = 871710,
+    PATH_ESCORT                  = 6973680,
     POINT_REACH_IDOL             = 17,
 
     QUEST_EXTINGUISHING_THE_IDOL = 3525,
@@ -105,7 +105,7 @@ public:
                 channeling = false;
                 eventProgress = 0;
                 spawnerCount  = 0;
-                me->SetFlag(UNIT_NPC_FLAGS, GOSSIP_OPTION_QUESTGIVER);
+                me->SetNpcFlag(UNIT_NPC_FLAG_QUESTGIVER);
             }
         }
 
@@ -134,7 +134,7 @@ public:
             {
                 eventInProgress = true;
                 Talk(SAY_QUEST_ACCEPTED);
-                me->RemoveFlag(UNIT_NPC_FLAGS, GOSSIP_OPTION_QUESTGIVER);
+                me->RemoveNpcFlag(UNIT_NPC_FLAG_QUESTGIVER);
                 me->SetFaction(FACTION_ESCORTEE_N_NEUTRAL_ACTIVE);
                 me->GetMotionMaster()->MovePath(PATH_ESCORT, false);
             }

@@ -81,6 +81,7 @@ TC_GAME_API uint32 GetDefaultMapLight(uint32 mapId);
 
 typedef std::unordered_multimap<uint32, SkillRaceClassInfoEntry const*> SkillRaceClassInfoMap;
 typedef std::pair<SkillRaceClassInfoMap::iterator, SkillRaceClassInfoMap::iterator> SkillRaceClassInfoBounds;
+TC_GAME_API std::vector<SkillLineAbilityEntry const*> const* GetSkillLineAbilitiesBySkill(uint32 skill);
 TC_GAME_API SkillRaceClassInfoEntry const* GetSkillRaceClassInfo(uint32 skill, uint8 race, uint8 class_);
 
 TC_GAME_API ResponseCodes ValidateName(std::wstring const& name, LocaleConstant locale);
@@ -91,7 +92,6 @@ TC_GAME_API extern DBCStorage <AchievementEntry>             sAchievementStore;
 TC_GAME_API extern DBCStorage <AchievementCriteriaEntry>     sAchievementCriteriaStore;
 TC_GAME_API extern DBCStorage <AreaTableEntry>               sAreaTableStore;
 TC_GAME_API extern DBCStorage <AreaGroupEntry>               sAreaGroupStore;
-TC_GAME_API extern DBCStorage <AreaPOIEntry>                 sAreaPOIStore;
 TC_GAME_API extern DBCStorage <AreaTriggerEntry>             sAreaTriggerStore;
 TC_GAME_API extern DBCStorage <AuctionHouseEntry>            sAuctionHouseStore;
 TC_GAME_API extern DBCStorage <BankBagSlotPricesEntry>       sBankBagSlotPricesStore;
@@ -151,6 +151,7 @@ TC_GAME_API extern DBCStorage <ItemRandomPropertiesEntry>    sItemRandomProperti
 TC_GAME_API extern DBCStorage <ItemRandomSuffixEntry>        sItemRandomSuffixStore;
 TC_GAME_API extern DBCStorage <ItemSetEntry>                 sItemSetStore;
 TC_GAME_API extern DBCStorage <LFGDungeonEntry>              sLFGDungeonStore;
+TC_GAME_API extern DBCStorage <LFGDungeonExpansionEntry>     sLFGDungeonExpansionStore;
 TC_GAME_API extern DBCStorage <LightEntry>                   sLightStore;
 TC_GAME_API extern DBCStorage <LiquidTypeEntry>              sLiquidTypeStore;
 TC_GAME_API extern DBCStorage <LockEntry>                    sLockStore;

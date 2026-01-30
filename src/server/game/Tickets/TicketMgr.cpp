@@ -30,7 +30,7 @@
 #include "WorldPacket.h"
 #include "WorldSession.h"
 
-inline float GetAge(uint64 t) { return float(GameTime::GetGameTime() - t) / DAY; }
+inline float GetAge(uint64 t) { return float(GameTime::GetGameTime() - t) / float(DAY); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // GM ticket
@@ -68,7 +68,7 @@ bool GmTicket::LoadFromDB(Field* fields)
     uint8 index = 0;
     _id                 = fields[  index].GetUInt32();
     _type               = TicketType(fields[++index].GetUInt8());
-    _playerGuid         = ObjectGuid(HighGuid::Player, fields[++index].GetUInt32());
+    _playerGuid         = ObjectGuid::Create<HighGuid::Player>(fields[++index].GetUInt32());
     _playerName         = fields[++index].GetString();
     _message            = fields[++index].GetString();
     _createTime         = fields[++index].GetUInt32();
@@ -77,8 +77,8 @@ bool GmTicket::LoadFromDB(Field* fields)
     _posY               = fields[++index].GetFloat();
     _posZ               = fields[++index].GetFloat();
     _lastModifiedTime   = fields[++index].GetUInt32();
-    _closedBy           = ObjectGuid(uint64(fields[++index].GetInt32()));
-    _assignedTo         = ObjectGuid(HighGuid::Player, fields[++index].GetUInt32());
+    _closedBy           = fields[++index].GetUInt32() ? ObjectGuid::Create<HighGuid::Player>(fields[index].GetUInt32()) : ObjectGuid::Empty;
+    _assignedTo         = fields[++index].GetUInt32() ? ObjectGuid::Create<HighGuid::Player>(fields[index].GetUInt32()) : ObjectGuid::Empty;
     _comment            = fields[++index].GetString();
     _response           = fields[++index].GetString();
     _completed          = fields[++index].GetBool();
@@ -105,7 +105,7 @@ void GmTicket::SaveToDB(CharacterDatabaseTransaction trans) const
     stmt->setFloat (++index, _posY);
     stmt->setFloat (++index, _posZ);
     stmt->setUInt32(++index, uint32(_lastModifiedTime));
-    stmt->setInt32 (++index, int32(_closedBy.GetCounter()));
+    stmt->setUInt32(++index, _closedBy.GetCounter());
     stmt->setUInt32(++index, _assignedTo.GetCounter());
     stmt->setString(++index, _comment);
     stmt->setString(++index, _response);
@@ -352,7 +352,7 @@ void TicketMgr::LoadTickets()
         ++count;
     } while (result->NextRow());
 
-    TC_LOG_INFO("server.loading", ">> Loaded %u GM tickets in %u ms", count, GetMSTimeDiffToNow(oldMSTime));
+    TC_LOG_INFO("server.loading", ">> Loaded {} GM tickets in {} ms", count, GetMSTimeDiffToNow(oldMSTime));
 
 }
 
@@ -365,7 +365,7 @@ void TicketMgr::LoadSurveys()
     if (QueryResult result = CharacterDatabase.Query("SELECT MAX(surveyId) FROM gm_survey"))
         _lastSurveyId = (*result)[0].GetUInt32();
 
-    TC_LOG_INFO("server.loading", ">> Loaded GM Survey count from database in %u ms", GetMSTimeDiffToNow(oldMSTime));
+    TC_LOG_INFO("server.loading", ">> Loaded GM Survey count from database in {} ms", GetMSTimeDiffToNow(oldMSTime));
 
 }
 
@@ -384,7 +384,7 @@ void TicketMgr::CloseTicket(uint32 ticketId, ObjectGuid source)
     {
         CharacterDatabaseTransaction trans = CharacterDatabaseTransaction(nullptr);
         ticket->SetClosedBy(source);
-        if (source)
+        if (!source.IsEmpty())
             --_openTicketCount;
         ticket->SaveToDB(trans);
     }
@@ -397,7 +397,7 @@ void TicketMgr::ResolveAndCloseTicket(uint32 ticketId, ObjectGuid source)
         CharacterDatabaseTransaction trans = CharacterDatabaseTransaction(nullptr);
         ticket->SetClosedBy(source);
         ticket->SetResolvedBy(source);
-        if (source)
+        if (!source.IsEmpty())
             --_openTicketCount;
         ticket->SaveToDB(trans);
     }
@@ -459,7 +459,7 @@ std::string GmTicket::GetAssignedToName() const
 {
     std::string name;
     // save queries if ticket is not assigned
-    if (_assignedTo)
+    if (!_assignedTo.IsEmpty())
         sCharacterCache->GetCharacterNameByGuid(_assignedTo, name);
 
     return name;

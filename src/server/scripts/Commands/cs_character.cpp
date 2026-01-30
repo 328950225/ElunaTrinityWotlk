@@ -68,7 +68,7 @@ public:
             { "changeaccount", HandleCharacterChangeAccountCommand,  rbac::RBAC_PERM_COMMAND_CHARACTER_CHANGEACCOUNT,   Console::Yes },
             { "deleted",       characterDeletedCommandTable },
             { "erase",         HandleCharacterEraseCommand,          rbac::RBAC_PERM_COMMAND_CHARACTER_ERASE,           Console::Yes },
-            { "level",         HandleLevelUpCommand,                 rbac::RBAC_PERM_COMMAND_CHARACTER_LEVEL,           Console::Yes },
+            { "level",         HandleCharacterLevelCommand,          rbac::RBAC_PERM_COMMAND_CHARACTER_LEVEL,           Console::Yes },
             { "rename",        HandleCharacterRenameCommand,         rbac::RBAC_PERM_COMMAND_CHARACTER_RENAME,          Console::Yes },
             { "reputation",    HandleCharacterReputationCommand,     rbac::RBAC_PERM_COMMAND_CHARACTER_REPUTATION,      Console::Yes },
             { "titles",        HandleCharacterTitlesCommand,         rbac::RBAC_PERM_COMMAND_CHARACTER_TITLES,          Console::Yes },
@@ -109,10 +109,10 @@ public:
         if (!searchString.empty())
         {
             // search by GUID
-            if (isNumeric(searchString.c_str()))
+            if (Optional<uint32> guidValue = Trinity::StringTo<uint64>(searchString))
             {
                 stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_CHAR_DEL_INFO_BY_GUID);
-                stmt->setUInt32(0, uint32(atoi(searchString.c_str())));
+                stmt->setUInt32(0, *guidValue);
                 result = CharacterDatabase.Query(stmt);
             }
             // search by name
@@ -140,7 +140,7 @@ public:
 
                 DeletedInfo info;
 
-                info.guid       = ObjectGuid(HighGuid::Player, fields[0].GetUInt32());
+                info.guid       = ObjectGuid::Create<HighGuid::Player>(fields[0].GetUInt32());
                 info.name       = fields[1].GetString();
                 info.accountId  = fields[2].GetUInt32();
 
@@ -180,11 +180,11 @@ public:
 
             if (!handler->GetSession())
                 handler->PSendSysMessage(LANG_CHARACTER_DELETED_LIST_LINE_CONSOLE,
-                    itr->guid.GetCounter(), itr->name.c_str(), itr->accountName.empty() ? "<Not existing>" : itr->accountName.c_str(),
+                    itr->guid.ToString().c_str(), itr->name.c_str(), itr->accountName.empty() ? "<Not existing>" : itr->accountName.c_str(),
                     itr->accountId, dateStr.c_str());
             else
                 handler->PSendSysMessage(LANG_CHARACTER_DELETED_LIST_LINE_CHAT,
-                    itr->guid.GetCounter(), itr->name.c_str(), itr->accountName.empty() ? "<Not existing>" : itr->accountName.c_str(),
+                    itr->guid.ToString().c_str(), itr->name.c_str(), itr->accountName.empty() ? "<Not existing>" : itr->accountName.c_str(),
                     itr->accountId, dateStr.c_str());
         }
 
@@ -206,7 +206,7 @@ public:
     {
         if (delInfo.accountName.empty())                    // account does not exist
         {
-            handler->PSendSysMessage(LANG_CHARACTER_DELETED_SKIP_ACCOUNT, delInfo.name.c_str(), delInfo.guid.GetCounter(), delInfo.accountId);
+            handler->PSendSysMessage(LANG_CHARACTER_DELETED_SKIP_ACCOUNT, delInfo.name.c_str(), delInfo.guid.ToString().c_str(), delInfo.accountId);
             return;
         }
 
@@ -214,13 +214,13 @@ public:
         uint32 charcount = AccountMgr::GetCharactersCount(delInfo.accountId);
         if (charcount >= 10)
         {
-            handler->PSendSysMessage(LANG_CHARACTER_DELETED_SKIP_FULL, delInfo.name.c_str(), delInfo.guid.GetCounter(), delInfo.accountId);
+            handler->PSendSysMessage(LANG_CHARACTER_DELETED_SKIP_FULL, delInfo.name.c_str(), delInfo.guid.ToString().c_str(), delInfo.accountId);
             return;
         }
 
-        if (sCharacterCache->GetCharacterGuidByName(delInfo.name))
+        if (!sCharacterCache->GetCharacterGuidByName(delInfo.name).IsEmpty())
         {
-            handler->PSendSysMessage(LANG_CHARACTER_DELETED_SKIP_NAME, delInfo.name.c_str(), delInfo.guid.GetCounter(), delInfo.accountId);
+            handler->PSendSysMessage(LANG_CHARACTER_DELETED_SKIP_NAME, delInfo.name.c_str(), delInfo.guid.ToString().c_str(), delInfo.accountId);
             return;
         }
 
@@ -269,7 +269,7 @@ public:
                 if (target->GetUInt32Value(PLAYER_CHOSEN_TITLE) == titleInfo->MaskID)
                     activeStr = handler->GetTrinityString(LANG_ACTIVE);
 
-                std::string titleName = Trinity::StringFormat(name, player->GetName().c_str());
+                std::string titleName = fmt::sprintf(name, player->GetName());
 
                 // send title in "id (idx:idx) - [namedlink locale]" format
                 if (handler->GetSession())
@@ -360,10 +360,10 @@ public:
             if (WorldSession* session = handler->GetSession())
             {
                 if (Player* player = session->GetPlayer())
-                    sLog->outCommand(session->GetAccountId(), "GM %s (Account: %u) forced rename %s to player %s (Account: %u)", player->GetName().c_str(), session->GetAccountId(), newName.c_str(), player->GetName().c_str(), sCharacterCache->GetCharacterAccountIdByGuid(player->GetGUID()));
+                    sLog->OutCommand(session->GetAccountId(), "GM {} (Account: {}) forced rename {} to player {} (Account: {})", player->GetName(), session->GetAccountId(), newName, player->GetName(), sCharacterCache->GetCharacterAccountIdByGuid(player->GetGUID()));
             }
             else
-                sLog->outCommand(0, "CONSOLE forced rename '%s' to '%s' (%s)", player->GetName().c_str(), newName.c_str(), player->GetGUID().ToString().c_str());
+                sLog->OutCommand(0, "CONSOLE forced rename '{}' to '{}' ({})", player->GetName(), newName, player->GetGUID().ToString());
         }
         else
         {
@@ -378,7 +378,7 @@ public:
                 if (handler->HasLowerSecurity(nullptr, player->GetGUID()))
                     return false;
 
-                handler->PSendSysMessage(LANG_RENAME_PLAYER_GUID, handler->playerLink(*player).c_str(), player->GetGUID().GetCounter());
+                handler->PSendSysMessage(LANG_RENAME_PLAYER_GUID, handler->playerLink(*player).c_str(), player->GetGUID().ToString().c_str());
 
                 CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_ADD_AT_LOGIN_FLAG);
                 stmt->setUInt16(0, uint16(AT_LOGIN_RENAME));
@@ -405,7 +405,7 @@ public:
         }
         else
         {
-            handler->PSendSysMessage(LANG_CUSTOMIZE_PLAYER_GUID, handler->playerLink(*player).c_str(), player->GetGUID().GetCounter());
+            handler->PSendSysMessage(LANG_CUSTOMIZE_PLAYER_GUID, handler->playerLink(*player).c_str(), player->GetGUID().ToString().c_str());
             CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_ADD_AT_LOGIN_FLAG);
             stmt->setUInt16(0, static_cast<uint16>(AT_LOGIN_CUSTOMIZE));
             stmt->setUInt32(1, player->GetGUID().GetCounter());
@@ -422,6 +422,24 @@ public:
         if (!player)
             return false;
 
+        CharacterCacheEntry const* characterInfo = sCharacterCache->GetCharacterCacheByGuid(player->GetGUID());
+        if (!characterInfo)
+            return false;
+
+        if (characterInfo->Level < 10)
+        {
+            handler->PSendSysMessage(LANG_CHANGEFACTION_NOT_ELIGIBLE_10);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        if (characterInfo->Class == CLASS_DEATH_KNIGHT && characterInfo->Level < 60)
+        {
+            handler->PSendSysMessage(LANG_CHANGEFACTION_NOT_ELIGIBLE_60);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
         if (Player* target = player->GetConnectedPlayer())
         {
             handler->PSendSysMessage(LANG_CUSTOMIZE_PLAYER, handler->GetNameLink(target).c_str());
@@ -429,7 +447,7 @@ public:
         }
         else
         {
-            handler->PSendSysMessage(LANG_CUSTOMIZE_PLAYER_GUID, handler->playerLink(*player).c_str(), player->GetGUID().GetCounter());
+            handler->PSendSysMessage(LANG_CUSTOMIZE_PLAYER_GUID, handler->playerLink(*player).c_str(), player->GetGUID().ToString().c_str());
             CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_ADD_AT_LOGIN_FLAG);
             stmt->setUInt16(0, uint16(AT_LOGIN_CHANGE_FACTION));
             stmt->setUInt32(1, player->GetGUID().GetCounter());
@@ -453,7 +471,7 @@ public:
         }
         else
         {
-            handler->PSendSysMessage(LANG_CUSTOMIZE_PLAYER_GUID, handler->playerLink(*player).c_str(), player->GetGUID().GetCounter());
+            handler->PSendSysMessage(LANG_CUSTOMIZE_PLAYER_GUID, handler->playerLink(*player).c_str(), player->GetGUID().ToString().c_str());
             CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_ADD_AT_LOGIN_FLAG);
             stmt->setUInt16(0, uint16(AT_LOGIN_CHANGE_RACE));
             stmt->setUInt32(1, player->GetGUID().GetCounter());
@@ -508,14 +526,14 @@ public:
 
         handler->PSendSysMessage(LANG_CHANGEACCOUNT_SUCCESS, player->GetName().c_str(), newAccount.GetName().c_str());
 
-        std::string logString = Trinity::StringFormat("changed ownership of player %s (%s) from account %u to account %u", player->GetName().c_str(), player->GetGUID().ToString().c_str(), oldAccountId, newAccount.GetID());
+        std::string logString = Trinity::StringFormat("changed ownership of player {} ({}) from account {} to account {}", player->GetName(), player->GetGUID().ToString(), oldAccountId, newAccount.GetID());
         if (WorldSession* session = handler->GetSession())
         {
             if (Player* player = session->GetPlayer())
-                sLog->outCommand(session->GetAccountId(), "GM %s (Account: %u) %s", player->GetName().c_str(), session->GetAccountId(), logString.c_str());
+                sLog->OutCommand(session->GetAccountId(), "GM {} (Account: {}) {}", player->GetName(), session->GetAccountId(), logString);
         }
         else
-            sLog->outCommand(0, "%s %s", handler->GetTrinityString(LANG_CONSOLE), logString.c_str());
+            sLog->OutCommand(0, "{} {}", handler->GetTrinityString(LANG_CONSOLE), logString);
         return true;
     }
 
@@ -539,8 +557,7 @@ public:
             FactionState const& faction = itr->second;
             FactionEntry const* factionEntry = sFactionStore.LookupEntry(faction.ID);
             char const* factionName = factionEntry ? factionEntry->Name[loc] : "#Not found#";
-            ReputationRank rank = target->GetReputationMgr().GetRank(factionEntry);
-            std::string rankName = handler->GetTrinityString(ReputationRankStrIndex[rank]);
+            std::string rankName = target->GetReputationMgr().GetReputationRankName(factionEntry);
             std::ostringstream ss;
             if (handler->GetSession())
                 ss << faction.ID << " - |cffffffff|Hfaction:" << faction.ID << "|h[" << factionName << ' ' << localeNames[loc] << "]|h|r";
@@ -549,17 +566,17 @@ public:
 
             ss << ' ' << rankName << " (" << target->GetReputationMgr().GetReputation(factionEntry) << ')';
 
-            if (faction.Flags & FACTION_FLAG_VISIBLE)
+            if (faction.Flags.HasFlag(ReputationFlags::Visible))
                 ss << handler->GetTrinityString(LANG_FACTION_VISIBLE);
-            if (faction.Flags & FACTION_FLAG_AT_WAR)
+            if (faction.Flags.HasFlag(ReputationFlags::AtWar))
                 ss << handler->GetTrinityString(LANG_FACTION_ATWAR);
-            if (faction.Flags & FACTION_FLAG_PEACE_FORCED)
+            if (faction.Flags.HasFlag(ReputationFlags::Peaceful))
                 ss << handler->GetTrinityString(LANG_FACTION_PEACE_FORCED);
-            if (faction.Flags & FACTION_FLAG_HIDDEN)
+            if (faction.Flags.HasFlag(ReputationFlags::Hidden))
                 ss << handler->GetTrinityString(LANG_FACTION_HIDDEN);
-            if (faction.Flags & FACTION_FLAG_INVISIBLE_FORCED)
+            if (faction.Flags.HasFlag(ReputationFlags::Header))
                 ss << handler->GetTrinityString(LANG_FACTION_INVISIBLE_FORCED);
-            if (faction.Flags & FACTION_FLAG_INACTIVE)
+            if (faction.Flags.HasFlag(ReputationFlags::Inactive))
                 ss << handler->GetTrinityString(LANG_FACTION_INACTIVE);
 
             handler->SendSysMessage(ss.str().c_str());
@@ -732,7 +749,53 @@ public:
         AccountMgr::GetName(accountId, accountName);
 
         Player::DeleteFromDB(player, accountId, true, true);
-        handler->PSendSysMessage(LANG_CHARACTER_DELETED, player.GetName().c_str(), player.GetGUID().GetCounter(), accountName.c_str(), accountId);
+        handler->PSendSysMessage(LANG_CHARACTER_DELETED, player.GetName().c_str(), player.GetGUID().ToString().c_str(), accountName.c_str(), accountId);
+
+        return true;
+    }
+
+    static bool HandleCharacterLevelCommand(ChatHandler* handler, Optional<PlayerIdentifier> player, int16 newlevel)
+    {
+        if (!player)
+            player = PlayerIdentifier::FromTargetOrSelf(handler);
+        if (!player)
+            return false;
+
+        uint8 oldlevel = static_cast<uint8>(player->IsConnected() ? player->GetConnectedPlayer()->GetLevel() : sCharacterCache->GetCharacterLevelByGuid(*player));
+
+        if (newlevel < 1)
+            newlevel = 1;
+
+        if (newlevel > static_cast<int16>(STRONG_MAX_LEVEL))
+            newlevel = static_cast<int16>(STRONG_MAX_LEVEL);
+
+        if (Player* target = player->GetConnectedPlayer())
+        {
+            target->GiveLevel(static_cast<uint8>(newlevel));
+            target->InitTalentForLevel();
+            target->SetXP(0);
+
+            if (handler->needReportToTarget(target))
+            {
+                if (oldlevel == newlevel)
+                    ChatHandler(target->GetSession()).PSendSysMessage(LANG_YOURS_LEVEL_PROGRESS_RESET, handler->GetNameLink().c_str());
+                else if (oldlevel < static_cast<uint8>(newlevel))
+                    ChatHandler(target->GetSession()).PSendSysMessage(LANG_YOURS_LEVEL_UP, handler->GetNameLink().c_str(), newlevel);
+                else                                                // if (oldlevel > newlevel)
+                    ChatHandler(target->GetSession()).PSendSysMessage(LANG_YOURS_LEVEL_DOWN, handler->GetNameLink().c_str(), newlevel);
+            }
+        }
+        else
+        {
+            // Update level and reset XP, everything else will be updated at login
+            CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_LEVEL);
+            stmt->setUInt8(0, static_cast<uint8>(newlevel));
+            stmt->setUInt32(1, player->GetGUID().GetCounter());
+            CharacterDatabase.Execute(stmt);
+        }
+
+        if (!handler->GetSession() || (handler->GetSession()->GetPlayer() != player->GetConnectedPlayer()))      // including chr == NULL
+            handler->PSendSysMessage(LANG_YOU_CHANGE_LVL, handler->playerLink(*player).c_str(), newlevel);
 
         return true;
     }
@@ -774,7 +837,7 @@ public:
             // Update level and reset XP, everything else will be updated at login
             CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_LEVEL);
             stmt->setUInt8(0, static_cast<uint8>(newlevel));
-            stmt->setUInt32(1, player->GetGUID());
+            stmt->setUInt32(1, player->GetGUID().GetCounter());
             CharacterDatabase.Execute(stmt);
         }
 
@@ -883,7 +946,7 @@ public:
 
         if (characterGUID)
         {
-            if (sCharacterCache->GetCharacterCacheByGuid(ObjectGuid(HighGuid::Player, *characterGUID)))
+            if (sCharacterCache->GetCharacterCacheByGuid(ObjectGuid::Create<HighGuid::Player>(*characterGUID)))
             {
                 handler->PSendSysMessage(LANG_CHARACTER_GUID_IN_USE, *characterGUID);
                 handler->SetSentErrorMessage(true);

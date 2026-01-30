@@ -20,9 +20,10 @@
 
 #include "MoveSplineInitArgs.h"
 
+class ObjectGuid;
 class Unit;
 
-enum class AnimationTier : uint8;
+enum class AnimTier : uint8;
 
 namespace Movement
 {
@@ -47,11 +48,13 @@ namespace Movement
     public:
 
         explicit MoveSplineInit(Unit* m);
-        MoveSplineInit(MoveSplineInit&& init) = default;
 
         ~MoveSplineInit();
+
         MoveSplineInit(MoveSplineInit const&) = delete;
         MoveSplineInit& operator=(MoveSplineInit const&) = delete;
+        MoveSplineInit(MoveSplineInit&& init) = delete;
+        MoveSplineInit& operator=(MoveSplineInit&&) = delete;
 
         /*  Final pass of initialization that launches spline movement.
          */
@@ -70,7 +73,7 @@ namespace Movement
         /* Plays animation after movement done
          * can't be combined with parabolic movement
          */
-        void SetAnimation(AnimationTier anim);
+        void SetAnimation(AnimTier anim);
 
         /* Adds final facing animation
          * sets unit's facing to specified point/angle after all path done
@@ -79,6 +82,7 @@ namespace Movement
         void SetFacing(float angle);
         void SetFacing(Vector3 const& point);
         void SetFacing(Unit const* target);
+        void SetFacing(ObjectGuid const& target);
 
         /* Initializes movement by path
          * @param path - array of points, shouldn't be empty
@@ -100,27 +104,35 @@ namespace Movement
          * if not enabled linear spline mode will be choosen. Disabled by default
          */
         void SetSmooth();
+
         /* Enables CatmullRom spline interpolation mode, enables flying animation. Disabled by default
          */
         void SetFly();
+
         /* Enables walk mode. Disabled by default
          */
         void SetWalk(bool enable);
+
         /* Makes movement cyclic. Disabled by default
          */
         void SetCyclic();
+
         /* Enables falling mode. Disabled by default
          */
         void SetFall();
+
         /* Enters transport. Disabled by default
          */
         void SetTransportEnter();
+
         /* Exits transport. Disabled by default
          */
         void SetTransportExit();
+
         /* Inverses unit model orientation. Disabled by default
          */
         void SetBackward();
+
         /* Fixes unit's model rotation. Disabled by default
          */
         void SetOrientationFixed(bool enable);
@@ -131,6 +143,8 @@ namespace Movement
          * velocity shouldn't be negative
          */
         void SetVelocity(float velocity);
+
+        void SetSwim();
 
         PointsArray& Path() { return args.path; }
 
@@ -147,12 +161,12 @@ namespace Movement
     inline void MoveSplineInit::SetWalk(bool enable) { args.walk = enable; }
     inline void MoveSplineInit::SetSmooth() { args.flags.EnableCatmullRom(); }
     inline void MoveSplineInit::SetCyclic() { args.flags.cyclic = true; }
-    inline void MoveSplineInit::SetFall() { args.flags.EnableFalling(); }
     inline void MoveSplineInit::SetVelocity(float vel) { args.velocity = vel; args.HasVelocity = true; }
     inline void MoveSplineInit::SetBackward() { args.flags.backward = true; }
     inline void MoveSplineInit::SetTransportEnter() { args.flags.EnableTransportEnter(); }
     inline void MoveSplineInit::SetTransportExit() { args.flags.EnableTransportExit(); }
     inline void MoveSplineInit::SetOrientationFixed(bool enable) { args.flags.orientationFixed = enable; }
+    inline void MoveSplineInit::SetSwim() { args.flags.EnableSwim(); }
 
     inline void MoveSplineInit::SetParabolic(float amplitude, float time_shift)
     {
@@ -161,7 +175,7 @@ namespace Movement
         args.flags.EnableParabolic();
     }
 
-    inline void MoveSplineInit::SetAnimation(AnimationTier anim)
+    inline void MoveSplineInit::SetAnimation(AnimTier anim)
     {
         args.time_perc = 0.f;
         args.flags.EnableAnimation((uint8)anim);

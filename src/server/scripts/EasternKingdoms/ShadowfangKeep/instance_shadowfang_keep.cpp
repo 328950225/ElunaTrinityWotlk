@@ -67,7 +67,7 @@ public:
 
     struct instance_shadowfang_keep_InstanceMapScript : public InstanceScript
     {
-        instance_shadowfang_keep_InstanceMapScript(Map* map) : InstanceScript(map)
+        instance_shadowfang_keep_InstanceMapScript(InstanceMap* map) : InstanceScript(map)
         {
             SetHeaders(DataHeader);
             memset(&m_auiEncounter, 0, sizeof(m_auiEncounter));
@@ -174,7 +174,11 @@ public:
                     break;
                 case TYPE_NANDOS:
                     if (data == DONE)
-                        DoUseDoorOrButton(DoorArugalGUID);
+                    {
+                        if (GameObject* go = instance->GetGameObject(DoorArugalGUID))
+                            if (go->GetGoState() == GO_STATE_READY)
+                                DoUseDoorOrButton(DoorArugalGUID);
+                    }
                     m_auiEncounter[3] = data;
                     break;
                 case DATA_SPAWN_VALENTINE_ADDS:

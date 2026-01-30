@@ -18,6 +18,7 @@
 #ifndef TRINITY_SCRIPTEDCREATURE_H
 #define TRINITY_SCRIPTEDCREATURE_H
 
+#include "CommonHelpers.h"
 #include "Creature.h"  // convenience include for scripts, all uses of ScriptedCreature also need Creature (except ScriptedCreature itself doesn't need Creature)
 #include "CreatureAI.h"
 #include "DBCEnums.h"
@@ -95,9 +96,9 @@ public:
     void DoAction(int32 info, Predicate&& predicate, uint16 max = 0)
     {
         // We need to use a copy of SummonList here, otherwise original SummonList would be modified
-        StorageType listCopy = _storage;
-        Trinity::Containers::RandomResize<StorageType, Predicate>(listCopy, std::forward<Predicate>(predicate), max);
-        DoActionImpl(info, listCopy);
+        StorageType listCopy;
+        std::copy_if(std::begin(_storage), std::end(_storage), std::inserter(listCopy, std::end(listCopy)), predicate);
+        DoActionImpl(info, listCopy, max);
     }
 
     void DoZoneInCombat(uint32 entry = 0);
@@ -105,7 +106,7 @@ public:
     bool HasEntry(uint32 entry) const;
 
 private:
-    void DoActionImpl(int32 action, StorageType const& summons);
+    void DoActionImpl(int32 action, StorageType& summons, uint16 max);
 
     Creature* _me;
     StorageType _storage;
@@ -246,6 +247,10 @@ struct TC_GAME_API ScriptedAI : public CreatureAI
         // return true for 25 man or 25 man heroic mode
         bool Is25ManRaid() const { return _difficulty & RAID_DIFFICULTY_MASK_25MAN; }
 
+        void SetAggressiveStateAfter(Milliseconds timer, Creature* who = nullptr, bool startCombat = true, Creature* summoner = nullptr, StartCombatArgs const& combatArgs = { });
+
+        void DoAddEvent(Milliseconds timer, BasicEvent* event, WorldObject* who = nullptr);
+
         template <class T>
         inline T const& DUNGEON_MODE(T const& normal5, T const& heroic10) const
         {
@@ -337,7 +342,7 @@ class TC_GAME_API BossAI : public ScriptedAI
         void _JustEngagedWith(Unit* who);
         void _JustDied();
         void _JustReachedHome();
-        void _DespawnAtEvade(Seconds delayToRespawn = 30s,  Creature* who = nullptr);
+        void _DespawnAtEvade(Seconds delayToRespawn = 30s, Creature* who = nullptr);
 
         void TeleportCheaters();
 
@@ -385,6 +390,11 @@ inline Creature* GetClosestCreatureWithEntry(WorldObject* source, uint32 entry, 
     return source->FindNearestCreature(entry, maxSearchRange, alive);
 }
 
+inline Creature* GetClosestCreatureWithOptions(WorldObject* source, float maxSearchRange, FindCreatureOptions const& options)
+{
+    return source->FindNearestCreatureWithOptions(maxSearchRange, options);
+}
+
 inline GameObject* GetClosestGameObjectWithEntry(WorldObject* source, uint32 entry, float maxSearchRange, bool spawnedOnly = true)
 {
     return source->FindNearestGameObject(entry, maxSearchRange, spawnedOnly);
@@ -397,15 +407,21 @@ inline void GetCreatureListWithEntryInGrid(Container& container, WorldObject* so
 }
 
 template <typename Container>
+inline void GetCreatureListWithOptionsInGrid(Container& container, WorldObject* source, float maxSearchRange, FindCreatureOptions const& options)
+{
+    source->GetCreatureListWithOptionsInGrid(container, maxSearchRange, options);
+}
+
+template <typename Container>
 inline void GetGameObjectListWithEntryInGrid(Container& container, WorldObject* source, uint32 entry, float maxSearchRange)
 {
     source->GetGameObjectListWithEntryInGrid(container, entry, maxSearchRange);
 }
 
 template <typename Container>
-inline void GetPlayerListInGrid(Container& container, WorldObject* source, float maxSearchRange)
+inline void GetPlayerListInGrid(Container& container, WorldObject* source, float maxSearchRange, bool alive = true)
 {
-    source->GetPlayerListInGrid(container, maxSearchRange);
+    source->GetPlayerListInGrid(container, maxSearchRange, alive);
 }
 
 #endif // TRINITY_SCRIPTEDCREATURE_H

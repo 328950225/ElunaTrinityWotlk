@@ -16,6 +16,7 @@
  */
 
 #include "UnitAI.h"
+#include "Containers.h"
 #include "Creature.h"
 #include "CreatureAIImpl.h"
 #include "MotionMaster.h"
@@ -29,15 +30,7 @@
 void UnitAI::AttackStart(Unit* victim)
 {
     if (victim && me->Attack(victim, true))
-    {
-        // Clear distracted state on attacking
-        if (me->HasUnitState(UNIT_STATE_DISTRACTED))
-        {
-            me->ClearUnitState(UNIT_STATE_DISTRACTED);
-            me->GetMotionMaster()->Clear();
-        }
         me->GetMotionMaster()->MoveChase(victim);
-    }
 }
 
 void UnitAI::InitializeAI()
@@ -209,9 +202,9 @@ void UnitAI::FillAISpellInfo()
 
         if (spellInfo->GetMaxRange(false))
         {
-            for (SpellEffectInfo const& Effect : spellInfo->Effects)
+            for (SpellEffectInfo const& effect : spellInfo->GetEffects())
             {
-                uint32 targetType = Effect.TargetA.GetTarget();
+                uint32 targetType = effect.TargetA.GetTarget();
 
                 if (targetType == TARGET_UNIT_TARGET_ENEMY
                     || targetType == TARGET_DEST_TARGET_ENEMY)
@@ -219,7 +212,7 @@ void UnitAI::FillAISpellInfo()
                 else if (targetType == TARGET_UNIT_DEST_AREA_ENEMY)
                     UPDATE_TARGET(AITARGET_ENEMY)
 
-                if (Effect.Effect == SPELL_EFFECT_APPLY_AURA)
+                if (effect.Effect == SPELL_EFFECT_APPLY_AURA)
                 {
                     if (targetType == TARGET_UNIT_TARGET_ENEMY)
                         UPDATE_TARGET(AITARGET_DEBUFF)
@@ -233,14 +226,97 @@ void UnitAI::FillAISpellInfo()
     }
 }
 
-ThreatManager& UnitAI::GetThreatManager()
+Unit* UnitAI::FinalizeTargetSelection(std::list<Unit*>& targetList, SelectTargetMethod targetType)
 {
-    return me->GetThreatManager();
+    // maybe nothing fulfills the predicate
+    if (targetList.empty())
+        return nullptr;
+
+    switch (targetType)
+    {
+        case SelectTargetMethod::MaxThreat:
+        case SelectTargetMethod::MinThreat:
+        case SelectTargetMethod::MaxDistance:
+        case SelectTargetMethod::MinDistance:
+            return targetList.front();
+        case SelectTargetMethod::Random:
+            return Trinity::Containers::SelectRandomContainerElement(targetList);
+        default:
+            break;
+    }
+
+    return nullptr;
 }
 
-void UnitAI::SortByDistance(std::list<Unit*>& list, bool ascending)
+bool UnitAI::PrepareTargetListSelection(std::list<Unit*>& targetList, SelectTargetMethod targetType, uint32 offset)
 {
-    list.sort(Trinity::ObjectDistanceOrderPred(me, ascending));
+    targetList.clear();
+    ThreatManager& mgr = me->GetThreatManager();
+    // shortcut: we're gonna ignore the first <offset> elements, and there's at most <offset> elements, so we ignore them all - nothing to do here
+    if (mgr.GetThreatListSize() <= offset)
+        return false;
+
+    if (targetType == SelectTargetMethod::MaxDistance || targetType == SelectTargetMethod::MinDistance)
+    {
+        for (ThreatReference const* ref : mgr.GetUnsortedThreatList())
+        {
+            if (ref->IsOffline())
+                continue;
+
+            targetList.push_back(ref->GetVictim());
+        }
+    }
+    else
+    {
+        Unit* currentVictim = mgr.GetCurrentVictim();
+        if (currentVictim)
+            targetList.push_back(currentVictim);
+
+        for (ThreatReference const* ref : mgr.GetSortedThreatList())
+        {
+            if (ref->IsOffline())
+                continue;
+
+            Unit* thisTarget = ref->GetVictim();
+            if (thisTarget != currentVictim)
+                targetList.push_back(thisTarget);
+        }
+    }
+
+    // shortcut: the list isn't gonna get any larger
+    if (targetList.size() <= offset)
+    {
+        targetList.clear();
+        return false;
+    }
+
+    // right now, list is unsorted for DISTANCE types - re-sort by SelectTargetMethod::MaxDistance
+    if (targetType == SelectTargetMethod::MaxDistance || targetType == SelectTargetMethod::MinDistance)
+        targetList.sort(Trinity::ObjectDistanceOrderPred(me, targetType == SelectTargetMethod::MinDistance));
+
+    // now the list is MAX sorted, reverse for MIN types
+    if (targetType == SelectTargetMethod::MinThreat)
+        targetList.reverse();
+
+    // ignore the first <offset> elements
+    while (offset)
+    {
+        targetList.pop_front();
+        --offset;
+    }
+
+    return true;
+}
+
+void UnitAI::FinalizeTargetListSelection(std::list<Unit*>& targetList, uint32 num, SelectTargetMethod targetType)
+{
+    if (targetList.size() <= num)
+        return;
+
+    if (targetType == SelectTargetMethod::Random)
+        Trinity::Containers::RandomResize(targetList, num);
+    else
+        targetList.resize(num);
 }
 
 std::string UnitAI::GetDebugInfo() const

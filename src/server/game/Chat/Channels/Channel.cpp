@@ -76,11 +76,12 @@ Channel::Channel(std::string const& name, uint32 team /*= 0*/, std::string const
 {
     for (std::string_view guid : Trinity::Tokenize(banList, ' ', false))
     {
-        ObjectGuid banned(Trinity::StringTo<uint64>(guid).value_or(0));
+        ObjectGuid banned;
+        banned.SetRawValue(Trinity::StringTo<uint64>(guid).value_or(0));
         if (!banned)
             continue;
 
-        TC_LOG_DEBUG("chat.system", "Channel(%s) loaded player %s into bannedStore", name.c_str(), banned.ToString().c_str());
+        TC_LOG_DEBUG("chat.system", "Channel({}) loaded player {} into bannedStore", name, banned.ToString());
         _bannedStore.insert(banned);
     }
 }
@@ -93,9 +94,9 @@ void Channel::GetChannelName(std::string& channelName, uint32 channelId, LocaleC
         if (!(channelEntry->Flags & CHANNEL_DBC_FLAG_GLOBAL))
         {
             if (channelEntry->Flags & CHANNEL_DBC_FLAG_CITY_ONLY)
-                channelName = Trinity::StringFormat(channelEntry->Name[locale], sObjectMgr->GetTrinityString(LANG_CHANNEL_CITY, locale));
+                channelName = fmt::sprintf(channelEntry->Name[locale], sObjectMgr->GetTrinityString(LANG_CHANNEL_CITY, locale));
             else
-                channelName = Trinity::StringFormat(channelEntry->Name[locale], ASSERT_NOTNULL(zoneEntry)->AreaName[locale]);
+                channelName = fmt::sprintf(channelEntry->Name[locale], ASSERT_NOTNULL(zoneEntry)->AreaName[locale]);
         }
         else
             channelName = channelEntry->Name[locale];
@@ -602,8 +603,8 @@ void Channel::List(Player const* player) const
     }
 
     std::string channelName = GetName(player->GetSession()->GetSessionDbcLocale());
-    TC_LOG_DEBUG("chat.system", "SMSG_CHANNEL_LIST %s Channel: %s",
-        player->GetSession()->GetPlayerInfo().c_str(), channelName.c_str());
+    TC_LOG_DEBUG("chat.system", "SMSG_CHANNEL_LIST {} Channel: {}",
+        player->GetSession()->GetPlayerInfo(), channelName);
 
     WorldPacket data(SMSG_CHANNEL_LIST, 1 + (channelName.size() + 1) + 1 + 4 + _playersStore.size() * (8 + 1));
     data << uint8(1);                                   // channel type?
@@ -627,7 +628,7 @@ void Channel::List(Player const* player) const
              member->GetSession()->GetSecurity() <= AccountTypes(gmLevelInWhoList)) &&
             member->IsVisibleGloballyFor(player))
         {
-            data << uint64(i->first);
+            data << i->first;
             data << uint8(i->second.flags);             // flags seems to be changed...
             ++count;
         }
@@ -776,7 +777,7 @@ void Channel::Invite(Player const* player, std::string const& newname)
 
 void Channel::SetOwner(ObjectGuid guid, bool exclaim)
 {
-    if (_ownerGuid)
+    if (!_ownerGuid.IsEmpty())
     {
         auto itr = _playersStore.find(_ownerGuid);
         if (itr != _playersStore.end())
@@ -784,7 +785,7 @@ void Channel::SetOwner(ObjectGuid guid, bool exclaim)
     }
 
     _ownerGuid = guid;
-    if (_ownerGuid)
+    if (!_ownerGuid.IsEmpty())
     {
         uint8 oldFlag = GetPlayerFlags(_ownerGuid);
         auto itr = _playersStore.find(_ownerGuid);
@@ -826,7 +827,7 @@ void Channel::JoinNotify(ObjectGuid guid) const
         LocaleConstant localeIdx = sWorld->GetAvailableDbcLocale(locale);
 
         data.Initialize(IsConstant() ? SMSG_USERLIST_ADD : SMSG_USERLIST_UPDATE, 8 + 1 + 1 + 4 + 30 /*channelName buffer*/);
-        data << uint64(guid);
+        data << guid;
         data << uint8(GetPlayerFlags(guid));
         data << uint8(GetFlags());
         data << uint32(GetNumPlayers());
@@ -846,7 +847,7 @@ void Channel::LeaveNotify(ObjectGuid guid) const
         LocaleConstant localeIdx = sWorld->GetAvailableDbcLocale(locale);
 
         data.Initialize(SMSG_USERLIST_REMOVE, 8 + 1 + 4 + 30 /*channelName buffer*/);
-        data << uint64(guid);
+        data << guid;
         data << uint8(GetFlags());
         data << uint32(GetNumPlayers());
         data << GetName(localeIdx);

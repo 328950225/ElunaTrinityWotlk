@@ -23,6 +23,7 @@ SDCategory: Trial of the Champion
 EndScriptData */
 
 #include "ScriptMgr.h"
+#include "Containers.h"
 #include "InstanceScript.h"
 #include "MotionMaster.h"
 #include "ObjectAccessor.h"
@@ -125,6 +126,7 @@ class OrientationCheck
         Unit* caster;
 };
 
+// 66862, 67681 - Radiance
 class spell_eadric_radiance : public SpellScriptLoader
 {
     public:
@@ -162,7 +164,7 @@ public:
             Initialize();
             instance = creature->GetInstanceScript();
             creature->SetReactState(REACT_PASSIVE);
-            creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+            creature->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
         }
 
         void Initialize()
@@ -189,7 +191,7 @@ public:
             Initialize();
         }
 
-        void DamageTaken(Unit* /*done_by*/, uint32 &damage) override
+        void DamageTaken(Unit* /*done_by*/, uint32& damage, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) override
         {
             if (damage >= me->GetHealth())
             {
@@ -273,7 +275,7 @@ public:
             instance = creature->GetInstanceScript();
 
             creature->SetReactState(REACT_PASSIVE);
-            creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+            creature->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
             creature->RestoreFaction();
         }
 
@@ -317,7 +319,7 @@ public:
                 me->RemoveAura(SPELL_SHIELD);
         }
 
-        void DamageTaken(Unit* /*done_by*/, uint32 &damage) override
+        void DamageTaken(Unit* /*done_by*/, uint32& damage, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) override
         {
             if (damage >= me->GetHealth())
             {
@@ -546,13 +548,13 @@ public:
                     switch (uiType)
                     {
                         case 0:
-                            AddWaypoint(0, 712.14f, 628.42f, 411.88f);
+                            AddWaypoint(0, 712.14f, 628.42f, 411.88f, true);
                             break;
                         case 1:
-                            AddWaypoint(0, 742.44f, 650.29f, 411.79f);
+                            AddWaypoint(0, 742.44f, 650.29f, 411.79f, true);
                             break;
                         case 2:
-                            AddWaypoint(0, 783.33f, 615.29f, 411.84f);
+                            AddWaypoint(0, 783.33f, 615.29f, 411.84f, true);
                             break;
                     }
                     break;
@@ -560,13 +562,13 @@ public:
                     switch (uiType)
                     {
                         case 0:
-                            AddWaypoint(0, 713.12f, 632.97f, 411.90f);
+                            AddWaypoint(0, 713.12f, 632.97f, 411.90f, true);
                             break;
                         case 1:
-                            AddWaypoint(0, 746.73f, 650.24f, 411.56f);
+                            AddWaypoint(0, 746.73f, 650.24f, 411.56f, true);
                             break;
                         case 2:
-                            AddWaypoint(0, 781.32f, 610.54f, 411.82f);
+                            AddWaypoint(0, 781.32f, 610.54f, 411.82f, true);
                             break;
                     }
                     break;
@@ -574,19 +576,19 @@ public:
                     switch (uiType)
                     {
                         case 0:
-                            AddWaypoint(0, 715.06f, 637.07f, 411.91f);
+                            AddWaypoint(0, 715.06f, 637.07f, 411.91f, true);
                             break;
                         case 1:
-                            AddWaypoint(0, 750.72f, 650.20f, 411.77f);
+                            AddWaypoint(0, 750.72f, 650.20f, 411.77f, true);
                             break;
                         case 2:
-                            AddWaypoint(0, 779.77f, 607.03f, 411.81f);
+                            AddWaypoint(0, 779.77f, 607.03f, 411.81f, true);
                             break;
                     }
                     break;
             }
 
-            Start(false, true);
+            Start(false);
             uiWaypoint = uiType;
         }
 

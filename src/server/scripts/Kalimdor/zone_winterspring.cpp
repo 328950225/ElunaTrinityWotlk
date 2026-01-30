@@ -257,6 +257,8 @@ static Position wingThicketLocations[] =
 # npc_ranshalla
 #####*/
 
+static constexpr uint32 PATH_ESCORT_RANSHALLA = 82402;
+
 class npc_ranshalla : public CreatureScript
 {
 public:
@@ -308,13 +310,13 @@ public:
             {
                 if (GameObject* go = GetClosestGameObjectWithEntry(me, GO_ELUNE_ALTAR, 10.0f))
                 {
-                    go->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
+                    go->RemoveFlag(GO_FLAG_NOT_SELECTABLE);
                     me->SetFacingToObject(go);
                     _altarGUID = go->GetGUID();
                 }
             }
             else if (GameObject* go = GetClosestGameObjectWithEntry(me, GO_ELUNE_FIRE, 10.0f))
-                go->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
+                go->RemoveFlag(GO_FLAG_NOT_SELECTABLE);
 
             // Yell and set escort to pause
             Talk(SAY_REACH_TORCH);
@@ -545,7 +547,8 @@ public:
                 Talk(SAY_QUEST_START);
                 me->SetFaction(FACTION_ESCORTEE_A_NEUTRAL_PASSIVE);
 
-                Start(false, false, player->GetGUID(), quest);
+                LoadPath(PATH_ESCORT_RANSHALLA);
+                Start(false, player->GetGUID(), quest);
             }
         }
 
@@ -585,7 +588,7 @@ public:
                 if (npc_ranshalla::npc_ranshallaAI* escortAI = dynamic_cast<npc_ranshalla::npc_ranshallaAI*>(ranshalla->AI()))
                     escortAI->DoContinueEscort(isAltar);
             }
-            me->SetFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
+            me->SetFlag(GO_FLAG_NOT_SELECTABLE);
             return false;
         }
     };

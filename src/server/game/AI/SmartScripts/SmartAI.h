@@ -49,8 +49,8 @@ class TC_GAME_API SmartAI : public CreatureAI
         bool IsAIControlled() const;
 
         // Start moving to the desired MovePoint
-        void StartPath(bool run = false, uint32 pathId = 0, bool repeat = false, Unit* invoker = nullptr, uint32 nodeId = 1);
-        bool LoadPath(uint32 entry);
+        void StartPath(uint32 pathId = 0, bool repeat = false, Unit* invoker = nullptr, uint32 nodeId = 1);
+        WaypointPath const* LoadPath(uint32 entry);
         void PausePath(uint32 delay, bool forced = false);
         bool CanResumePath();
         void StopPath(uint32 DespawnTime = 0, uint32 quest = 0, bool fail = false);
@@ -81,7 +81,6 @@ class TC_GAME_API SmartAI : public CreatureAI
         void StopFollow(bool complete);
         bool IsEscortInvokerInRange();
 
-        void WaypointStarted(uint32 nodeId, uint32 pathId) override;
         void WaypointReached(uint32 nodeId, uint32 pathId) override;
         void WaypointPathEnded(uint32 nodeId, uint32 pathId) override;
 
@@ -124,8 +123,23 @@ class TC_GAME_API SmartAI : public CreatureAI
         // Called when spell hits a target
         void SpellHitTarget(WorldObject* target, SpellInfo const* spellInfo) override;
 
+        // Called when a spell finishes
+        void OnSpellCast(SpellInfo const* spellInfo) override;
+
+        // Called when a spell fails
+        void OnSpellFailed(SpellInfo const* spellInfo) override;
+
+        // Called when a spell starts
+        void OnSpellStart(SpellInfo const* spellInfo) override;
+
+        // Called when aura is applied
+        void OnAuraApplied(AuraApplication const* aurApp) override;
+
+        // Called when aura is removed
+        void OnAuraRemoved(AuraApplication const* aurApp) override;
+
         // Called at any Damage from any attacker (before damage apply)
-        void DamageTaken(Unit* doneBy, uint32& damage) override;
+        void DamageTaken(Unit* doneBy, uint32& damage, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) override;
 
         // Called when the creature receives heal
         void HealReceived(Unit* doneBy, uint32& addhealth) override;
@@ -150,6 +164,9 @@ class TC_GAME_API SmartAI : public CreatureAI
 
         // called when the corpse of this creature gets removed
         void CorpseRemoved(uint32& respawnDelay) override;
+
+        // Called when the unit is about to be removed from the world (despawn, grid unload, corpse disappearing)
+        void OnDespawn() override;
 
         // Called when a Player/Creature enters the creature (vehicle)
         void PassengerBoarded(Unit* who, int8 seatId, bool apply) override;
@@ -182,11 +199,7 @@ class TC_GAME_API SmartAI : public CreatureAI
         // Makes the creature run/walk
         void SetRun(bool run = true);
 
-        void SetCanFly(bool fly = true);
-
         void SetDisableGravity(bool disable = true);
-
-        void SetSwim(bool swim = true);
 
         void SetEvadeDisabled(bool disable = true);
 
@@ -250,7 +263,6 @@ class TC_GAME_API SmartAI : public CreatureAI
         uint32 _escortState;
         uint32 _escortNPCFlags;
         uint32 _escortInvokerCheckTimer;
-        WaypointPath _path;
         uint32 _currentWaypointNode;
         bool _waypointReached;
         uint32 _waypointPauseTimer;

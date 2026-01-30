@@ -120,7 +120,7 @@ WorldObject* ObjectAccessor::GetWorldObject(WorldObject const& p, ObjectGuid con
         case HighGuid::Pet:           return GetPet(p, guid);
         case HighGuid::DynamicObject: return GetDynamicObject(p, guid);
         case HighGuid::Corpse:        return GetCorpse(p, guid);
-        default:                     return nullptr;
+        default:                      return nullptr;
     }
 }
 
@@ -186,6 +186,9 @@ DynamicObject* ObjectAccessor::GetDynamicObject(WorldObject const& u, ObjectGuid
 
 Unit* ObjectAccessor::GetUnit(WorldObject const& u, ObjectGuid const& guid)
 {
+    if (guid.IsEmpty())
+        return nullptr;
+
     if (guid.IsPlayer())
         return GetPlayer(u, guid);
 
@@ -238,7 +241,7 @@ Player* ObjectAccessor::FindPlayer(ObjectGuid const& guid)
 
 Player* ObjectAccessor::FindPlayerByName(std::string_view name)
 {
-    Player* player = PlayerNameMapHolder::Find(name);
+    Player* player = FindConnectedPlayerByName(name);
     if (!player || !player->IsInWorld())
         return nullptr;
 
@@ -247,7 +250,7 @@ Player* ObjectAccessor::FindPlayerByName(std::string_view name)
 
 Player* ObjectAccessor::FindPlayerByLowGUID(ObjectGuid::LowType lowguid)
 {
-    ObjectGuid guid(HighGuid::Player, lowguid);
+    ObjectGuid guid = ObjectGuid::Create<HighGuid::Player>(lowguid);
     return ObjectAccessor::FindPlayer(guid);
 }
 

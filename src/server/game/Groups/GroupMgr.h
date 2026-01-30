@@ -32,7 +32,7 @@ public:
     typedef std::map<ObjectGuid::LowType, Group*> GroupContainer;
     typedef std::vector<Group*>      GroupDbContainer;
 
-    Group* GetGroupByGUID(ObjectGuid::LowType guid) const;
+    Group* GetGroupByGUID(ObjectGuid const& guid) const;
 
     uint32 GenerateNewGroupDbStoreId();
     void   RegisterGroupDbStoreId(uint32 storageId, Group* group);
@@ -47,7 +47,6 @@ public:
     ObjectGuid::LowType GenerateGroupId();
     void   AddGroup(Group* group);
     void   RemoveGroup(Group* group);
-
 
 protected:
     ObjectGuid::LowType           NextGroupId;

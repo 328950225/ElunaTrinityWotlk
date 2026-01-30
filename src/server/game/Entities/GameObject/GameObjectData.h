@@ -203,7 +203,7 @@ struct GameObjectTemplate
             uint32 autoCloseTime;                           //2 secs till autoclose = autoCloseTime / 0x10000
             uint32 pause1EventID;                           //3
             uint32 pause2EventID;                           //4
-            uint32 mapID;                                   //5
+            int32 mapID;                                    //5
         } transport;
         //12 GAMEOBJECT_TYPE_AREADAMAGE
         struct
@@ -227,7 +227,7 @@ struct GameObjectTemplate
             uint32 conditionID1;                            //4
         } camera;
         //14 GAMEOBJECT_TYPE_MAPOBJECT - empty
-        //15 GAMEOBJECT_TYPE_MO_TRANSPORT
+        //15 GAMEOBJECT_TYPE_MAP_OBJ_TRANSPORT
         struct
         {
             uint32 taxiPathId;                              //0
@@ -236,13 +236,13 @@ struct GameObjectTemplate
             uint32 startEventID;                            //3
             uint32 stopEventID;                             //4
             uint32 transportPhysics;                        //5
-            uint32 mapID;                                   //6
+            int32 mapID;                                    //6
             uint32 worldState1;                             //7
             uint32 canBeStopped;                            //8
         } moTransport;
         //16 GAMEOBJECT_TYPE_DUELFLAG - empty
         //17 GAMEOBJECT_TYPE_FISHINGNODE - empty
-        //18 GAMEOBJECT_TYPE_SUMMONING_RITUAL
+        //18 GAMEOBJECT_TYPE_RITUAL
         struct
         {
             uint32 reqParticipants;                         //0
@@ -271,7 +271,7 @@ struct GameObjectTemplate
         struct
         {
             uint32 spellId;                                 //0
-            uint32 charges;                                 //1
+            int32 charges;                                  //1
             uint32 partyOnly;                               //2
             uint32 allowMounted;                            //3 Is usable while on mount/vehicle. (0/1)
             uint32 large;                                   //4
@@ -361,14 +361,14 @@ struct GameObjectTemplate
         //31 GAMEOBJECT_TYPE_DUNGEON_DIFFICULTY
         struct
         {
-            uint32 mapID;                                   //0
+            int32 mapID;                                    //0
             uint32 difficulty;                              //1
         } dungeonDifficulty;
         //32 GAMEOBJECT_TYPE_BARBER_CHAIR
         struct
         {
             uint32 chairheight;                             //0
-            uint32 heightOffset;                            //1
+            int32 heightOffset;                             //1
         } barberChair;
         //33 GAMEOBJECT_TYPE_DESTRUCTIBLE_BUILDING
         struct
@@ -380,21 +380,21 @@ struct GameObjectTemplate
             uint32 empty2;                                  //4
             uint32 damagedNumHits;                          //5
             uint32 empty3;                                  //6
-            uint32 empty4;                                  //7
-            uint32 empty5;                                  //8
+            int32 empty4;                                   //7
+            int32 empty5;                                   //8
             uint32 damagedEvent;                            //9
-            uint32 empty6;                                  //10
-            uint32 empty7;                                  //11
-            uint32 empty8;                                  //12
-            uint32 empty9;                                  //13
+            int32 empty6;                                   //10
+            int32 empty7;                                   //11
+            int32 empty8;                                   //12
+            int32 empty9;                                   //13
             uint32 destroyedEvent;                          //14
-            uint32 empty10;                                 //15
+            int32 empty10;                                  //15
             uint32 rebuildingTimeSecs;                      //16
-            uint32 empty11;                                 //17
+            int32 empty11;                                  //17
             uint32 destructibleData;                        //18
             uint32 rebuildingEvent;                         //19
-            uint32 empty12;                                 //20
-            uint32 empty13;                                 //21
+            int32 empty12;                                  //20
+            int32 empty13;                                  //21
             uint32 damageEvent;                             //22
             uint32 empty14;                                 //23
         } building;
@@ -420,6 +420,7 @@ struct GameObjectTemplate
 
     std::string AIName;
     uint32 ScriptId;
+    std::string StringId;
     WorldPacket QueryData[TOTAL_LOCALES];
 
     // helpers
@@ -617,6 +618,18 @@ struct GameObjectTemplate
         }
     }
 
+    uint32 GetServerOnly() const
+    {
+        switch (type)
+        {
+            case GAMEOBJECT_TYPE_GENERIC: return _generic.serverOnly;
+            case GAMEOBJECT_TYPE_TRAP: return trap.serverOnly;
+            case GAMEOBJECT_TYPE_SPELL_FOCUS: return spellFocus.serverOnly;
+            case GAMEOBJECT_TYPE_AURA_GENERATOR: return auraGenerator.serverOnly;
+            default: return 0;
+        }
+    }
+
     void InitializeQueryData();
     WorldPacket BuildQueryData(LocaleConstant loc) const;
 };
@@ -631,8 +644,8 @@ struct GameObjectOverride
 // From `gameobject_template_addon`
 struct GameObjectTemplateAddon : public GameObjectOverride
 {
-    uint32 Mingold;
-    uint32 Maxgold;
+    uint32 Mingold = 0;
+    uint32 Maxgold = 0;
     std::array<uint32, 4> artKits = {};
 };
 
@@ -652,6 +665,8 @@ struct TC_GAME_API QuaternionData
     bool isUnit() const;
     void toEulerAnglesZYX(float& Z, float& Y, float& X) const;
     static QuaternionData fromEulerAnglesZYX(float Z, float Y, float X);
+
+    friend bool operator==(QuaternionData const& left, QuaternionData const& right) = default;
 };
 
 // `gameobject_addon` table
@@ -675,30 +690,31 @@ struct GameObjectData : public SpawnData
 enum class GameObjectActions : uint32
 {
                                     // Name from client executable      // Comments
-    None,                           // -NONE-
-    AnimateCustom0,                 // Animate Custom0
-    AnimateCustom1,                 // Animate Custom1
-    AnimateCustom2,                 // Animate Custom2
-    AnimateCustom3,                 // Animate Custom3
-    Disturb,                        // Disturb                          // Triggers trap
-    Unlock,                         // Unlock                           // Resets GO_FLAG_LOCKED
-    Lock,                           // Lock                             // Sets GO_FLAG_LOCKED
-    Open,                           // Open                             // Sets GO_STATE_ACTIVE
-    OpenAndUnlock,                  // Open + Unlock                    // Sets GO_STATE_ACTIVE and resets GO_FLAG_LOCKED
-    Close,                          // Close                            // Sets GO_STATE_READY
-    ToggleOpen,                     // Toggle Open
-    Destroy,                        // Destroy                          // Sets GO_STATE_DESTROYED
-    Rebuild,                        // Rebuild                          // Resets from GO_STATE_DESTROYED
-    Creation,                       // Creation
-    Despawn,                        // Despawn
-    MakeInert,                      // Make Inert                       // Disables interactions
-    MakeActive,                     // Make Active                      // Enables interactions
-    CloseAndLock,                   // Close + Lock                     // Sets GO_STATE_READY and sets GO_FLAG_LOCKED
-    UseArtKit0,                     // Use ArtKit0                      // 46904: 121
-    UseArtKit1,                     // Use ArtKit1                      // 36639: 81, 46903: 122
-    UseArtKit2,                     // Use ArtKit2
-    UseArtKit3,                     // Use ArtKit3
-    SetTapList,                     // Set Tap List
+    None                     = 0,   // -NONE-
+    AnimateCustom0           = 1,   // Animate Custom0
+    AnimateCustom1           = 2,   // Animate Custom1
+    AnimateCustom2           = 3,   // Animate Custom2
+    AnimateCustom3           = 4,   // Animate Custom3
+    Disturb                  = 5,   // Disturb                          // Triggers trap
+    Unlock                   = 6,   // Unlock                           // Resets GO_FLAG_LOCKED
+    Lock                     = 7,   // Lock                             // Sets GO_FLAG_LOCKED
+    Open                     = 8,   // Open                             // Sets GO_STATE_ACTIVE
+    OpenAndUnlock            = 9,   // Open + Unlock                    // Sets GO_STATE_ACTIVE and resets GO_FLAG_LOCKED
+    Close                    = 10,  // Close                            // Sets GO_STATE_READY
+    ToggleOpen               = 11,  // Toggle Open
+    Destroy                  = 12,  // Destroy                          // Sets GO_STATE_DESTROYED
+    Rebuild                  = 13,  // Rebuild                          // Resets from GO_STATE_DESTROYED
+    Creation                 = 14,  // Creation
+    Despawn                  = 15,  // Despawn
+    MakeInert                = 16,  // Make Inert                       // Disables interactions
+    MakeActive               = 17,  // Make Active                      // Enables interactions
+    CloseAndLock             = 18,  // Close + Lock                     // Sets GO_STATE_READY and sets GO_FLAG_LOCKED
+    UseArtKit0               = 19,  // Use ArtKit0                      // 46904: 121
+    UseArtKit1               = 20,  // Use ArtKit1                      // 36639: 81, 46903: 122
+    UseArtKit2               = 21,  // Use ArtKit2
+    UseArtKit3               = 22,  // Use ArtKit3
+    SetTapList               = 23,  // Set Tap List
+    Max
 };
 
 #endif // GameObjectData_h__

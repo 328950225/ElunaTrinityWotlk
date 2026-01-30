@@ -21,6 +21,7 @@
 #include "MapDefines.h"
 #include "MapTree.h"
 #include "ModelInstance.h"
+#include "StringFormat.h"
 #include "VMapFactory.h"
 #include "VMapManager2.h"
 #include <map>
@@ -82,7 +83,7 @@ uint32 GetLiquidFlags(uint32 liquidId);
 
 namespace MMAP
 {
-    char const* MAP_VERSION_MAGIC = "v1.9";
+    uint32 const MAP_VERSION_MAGIC = 10;
 
     TerrainBuilder::TerrainBuilder(bool skipLiquid) : m_skipLiquid (skipLiquid){ }
     TerrainBuilder::~TerrainBuilder() { }
@@ -135,19 +136,18 @@ namespace MMAP
     /**************************************************************************/
     bool TerrainBuilder::loadMap(uint32 mapID, uint32 tileX, uint32 tileY, MeshData &meshData, Spot portion)
     {
-        char mapFileName[255];
-        sprintf(mapFileName, "maps/%03u%02u%02u.map", mapID, tileY, tileX);
+        std::string mapFileName = Trinity::StringFormat("maps/{:03}{:02}{:02}.map", mapID, tileY, tileX);
 
-        FILE* mapFile = fopen(mapFileName, "rb");
+        FILE* mapFile = fopen(mapFileName.c_str(), "rb");
         if (!mapFile)
             return false;
 
         map_fileheader fheader;
         if (fread(&fheader, sizeof(map_fileheader), 1, mapFile) != 1 ||
-            fheader.versionMagic != *((uint32 const*)(MAP_VERSION_MAGIC)))
+            fheader.versionMagic != MAP_VERSION_MAGIC)
         {
             fclose(mapFile);
-            printf("%s is the wrong version, please extract new .map files\n", mapFileName);
+            printf("%s is the wrong version, please extract new .map files\n", mapFileName.c_str());
             return false;
         }
 
@@ -424,7 +424,6 @@ namespace MMAP
                     else
                         useLiquid = false;
                 }
-
 
                 // if there is no terrain, don't use terrain
                 if (!ttriangles.size())

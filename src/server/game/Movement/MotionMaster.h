@@ -135,7 +135,7 @@ class TC_GAME_API MotionMaster
         void Remove(MovementGenerator* movement, MovementSlot slot = MOTION_SLOT_ACTIVE);
         // Removes first found movement
         // NOTE: MOTION_SLOT_DEFAULT will be autofilled with IDLE_MOTION_TYPE
-        void Remove(MovementGeneratorType type, MovementSlot slot = MOTION_SLOT_ACTIVE);
+        void Remove(MovementGeneratorType type, MovementSlot slot = MOTION_SLOT_ACTIVE, MovementGeneratorMode mode = MOTION_MODE_DEFAULT);
         // NOTE: MOTION_SLOT_DEFAULT wont be affected
         void Clear();
         // Removes all movements for the given MovementSlot
@@ -149,6 +149,7 @@ class TC_GAME_API MotionMaster
         void Clear(MovementGeneratorPriority priority);
         void PropagateSpeedChange();
         bool GetDestination(float &x, float &y, float &z);
+        bool StopOnDeath();
 
         void MoveIdle();
         void MoveTargetedHome();
@@ -192,7 +193,7 @@ class TC_GAME_API MotionMaster
         void MoveRotate(uint32 id, uint32 time, RotateDirection direction);
         void MoveFormation(Unit* leader, float range, float angle, uint32 point1, uint32 point2);
 
-        void LaunchMoveSpline(Movement::MoveSplineInit&& init, uint32 id = 0, MovementGeneratorPriority priority = MOTION_PRIORITY_NORMAL, MovementGeneratorType type = EFFECT_MOTION_TYPE);
+        void LaunchMoveSpline(std::function<void(Movement::MoveSplineInit& init)>&& initializer, uint32 id = 0, MovementGeneratorPriority priority = MOTION_PRIORITY_NORMAL, MovementGeneratorType type = EFFECT_MOTION_TYPE);
     private:
         typedef std::unique_ptr<MovementGenerator, MovementGeneratorDeleter> MovementGeneratorPointer;
         typedef std::multiset<MovementGenerator*, MovementGeneratorComparator> MotionMasterContainer;

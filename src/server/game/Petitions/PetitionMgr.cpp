@@ -56,7 +56,7 @@ void PetitionMgr::LoadPetitions()
         ++count;
     } while (result->NextRow());
 
-    TC_LOG_INFO("server.loading", ">> Loaded %u petitions in: %u ms.", count, GetMSTimeDiffToNow(oldMSTime));
+    TC_LOG_INFO("server.loading", ">> Loaded {} petitions in: {} ms.", count, GetMSTimeDiffToNow(oldMSTime));
 }
 
 void PetitionMgr::LoadSignatures()
@@ -83,7 +83,7 @@ void PetitionMgr::LoadSignatures()
         ++count;
     } while (result->NextRow());
 
-    TC_LOG_INFO("server.loading", ">> Loaded %u Petition signs in %u ms.", count, GetMSTimeDiffToNow(oldMSTime));
+    TC_LOG_INFO("server.loading", ">> Loaded {} Petition signs in {} ms.", count, GetMSTimeDiffToNow(oldMSTime));
 }
 
 void PetitionMgr::AddPetition(ObjectGuid petitionGuid, ObjectGuid ownerGuid, std::string const& name, CharterTypes type, bool isLoading)
@@ -232,7 +232,7 @@ void Petition::AddSignature(uint32 accountId, ObjectGuid playerGuid, bool isLoad
 
     stmt->setUInt32(0, OwnerGuid.GetCounter());
     stmt->setUInt32(1, PetitionGuid.GetCounter());
-    stmt->setUInt32(2, playerGuid);
+    stmt->setUInt32(2, playerGuid.GetCounter());
     stmt->setUInt32(3, accountId);
 
     CharacterDatabase.Execute(stmt);

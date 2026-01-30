@@ -16,7 +16,7 @@
  */
 
 #include "Hyperlinks.h"
-#include "AchievementMgr.h"
+#include "DBCStores.h"
 #include "ObjectMgr.h"
 #include "SpellInfo.h"
 #include "SpellMgr.h"
@@ -63,7 +63,7 @@ bool Trinity::Hyperlinks::LinkTags::achievement::StoreTo(AchievementLinkData& va
     uint32 achievementId;
     if (!t.TryConsumeTo(achievementId))
         return false;
-    val.Achievement = sAchievementMgr->GetAchievement(achievementId);
+    val.Achievement = sAchievementStore.LookupEntry(achievementId);
 
     if (!(val.Achievement && t.TryConsumeTo(val.CharacterId) && t.TryConsumeTo(val.IsFinished) && t.TryConsumeTo(val.Month) && t.TryConsumeTo(val.Day)))
         return false;
@@ -199,22 +199,12 @@ bool Trinity::Hyperlinks::LinkTags::talent::StoreTo(TalentLinkData& val, std::st
     if (rank < -1 || rank >= MAX_TALENT_RANK)
         return false;
     val.Talent = sTalentStore.LookupEntry(talentId);
-    val.Rank = rank+1;
+    val.Rank = rank + 1;
     if (!val.Talent)
         return false;
-    if (val.Rank > 0)
-    {
-        uint32 const spellId = val.Talent->SpellRank[val.Rank - 1];
-        if (!spellId)
-            return false;
-        val.Spell = sSpellMgr->GetSpellInfo(spellId);
-        if (!val.Spell)
-            return false;
-    }
-    else
-    {
-        val.Spell = nullptr;
-    }
+    val.Spell = sSpellMgr->GetSpellInfo(val.Talent->SpellRank[std::max<int32>(rank, 0)]);
+    if (!val.Spell)
+        return false;
     return true;
 }
 
@@ -225,6 +215,6 @@ bool Trinity::Hyperlinks::LinkTags::trade::StoreTo(TradeskillLinkData& val, std:
     if (!t.TryConsumeTo(spellId))
         return false;
     val.Spell = sSpellMgr->GetSpellInfo(spellId);
-    return (val.Spell && val.Spell->Effects[0].Effect == SPELL_EFFECT_TRADE_SKILL && t.TryConsumeTo(val.CurValue) &&
+    return (val.Spell && val.Spell->GetEffect(EFFECT_0).Effect == SPELL_EFFECT_TRADE_SKILL && t.TryConsumeTo(val.CurValue) &&
         t.TryConsumeTo(val.MaxValue) && t.TryConsumeTo(val.Owner) && t.TryConsumeTo(val.KnownRecipes) && t.IsEmpty());
 }

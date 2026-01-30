@@ -23,6 +23,7 @@ SDCategory: Zul'Aman
 EndScriptData */
 
 #include "ScriptMgr.h"
+#include "CreatureAI.h"
 #include "GameObject.h"
 #include "InstanceScript.h"
 #include "Log.h"
@@ -30,12 +31,26 @@ EndScriptData */
 #include "Player.h"
 #include "TemporarySummon.h"
 #include "zulaman.h"
+#include <algorithm>
 
 enum Misc
 {
     RAND_VENDOR                    = 2,
     WORLDSTATE_SHOW_TIMER          = 3104,
     WORLDSTATE_TIME_TO_SACRIFICE   = 3106
+};
+
+struct NalorakkWaveDefinition
+{
+    std::string_view StringId;
+    uint8 CreatureCount;
+    ZAActionIds ActionId;
+} static constexpr NalorakkEventWaves[] =
+{
+    { .StringId = "NalorakkWave1", .CreatureCount = 3, .ActionId = ACTION_WAVE_DONE_1 },
+    { .StringId = "NalorakkWave2", .CreatureCount = 4, .ActionId = ACTION_WAVE_DONE_2 },
+    { .StringId = "NalorakkWave3", .CreatureCount = 2, .ActionId = ACTION_WAVE_DONE_3 },
+    { .StringId = "NalorakkWave4", .CreatureCount = 4, .ActionId = ACTION_WAVE_DONE_4 },
 };
 
 // Chests spawn at bear/eagle/dragonhawk/lynx bosses
@@ -74,14 +89,18 @@ static DoorData const doorData[] =
 
 static ObjectData const creatureData[] =
 {
-    { NPC_HARRISON_JONES, NPC_HARRISON_JONES },
-    { NPC_NALORAKK,       BOSS_NALORAKK      },
-    { NPC_AKILZON,        BOSS_AKILZON       },
-    { NPC_JANALAI,        BOSS_JANALAI       },
-    { NPC_HALAZZI,        BOSS_HALAZZI       },
-    { NPC_HEXLORD,        BOSS_HEXLORD       },
-    { NPC_ZULJIN,         BOSS_ZULJIN        },
-    { 0,                  0                  } // END
+    { NPC_HARRISON_JONES,     NPC_HARRISON_JONES     },
+    { NPC_NALORAKK,           BOSS_NALORAKK          },
+    { NPC_AKILZON,            BOSS_AKILZON           },
+    { NPC_JANALAI,            BOSS_JANALAI           },
+    { NPC_HALAZZI,            BOSS_HALAZZI           },
+    { NPC_HEXLORD,            BOSS_HEXLORD           },
+    { NPC_ZULJIN,             BOSS_ZULJIN            },
+    { NPC_BEAR_SPIRIT,        DATA_BEAR_SPIRIT       },
+    { NPC_EAGLE_SPIRIT,       DATA_EAGLE_SPIRIT      },
+    { NPC_LYNX_SPIRIT,        DATA_LYNX_SPIRIT       },
+    { NPC_DRAGONHAWK_SPIRIT,  DATA_DRAGONHAWK_SPIRIT },
+    { 0,                      0                      } // END
 
 };
 
@@ -103,7 +122,7 @@ class instance_zulaman : public InstanceMapScript
 
         struct instance_zulaman_InstanceMapScript : public InstanceScript
         {
-            instance_zulaman_InstanceMapScript(Map* map) : InstanceScript(map)
+            instance_zulaman_InstanceMapScript(InstanceMap* map) : InstanceScript(map)
             {
                 SetHeaders(DataHeader);
                 SetBossNumber(MAX_ENCOUNTER);
@@ -148,6 +167,27 @@ class instance_zulaman : public InstanceMapScript
                 }
             }
 
+            void OnUnitDeath(Unit* unit) override
+            {
+                InstanceScript::OnUnitDeath(unit);
+
+                Creature* creature = unit->ToCreature();
+                if (!creature)
+                    return;
+
+                auto nalorakkEventWave = std::ranges::find_if(NalorakkEventWaves,
+                    [creature](std::string_view stringId) { return creature->HasStringId(stringId); }, &NalorakkWaveDefinition::StringId);
+                if (nalorakkEventWave != std::ranges::end(NalorakkEventWaves))
+                {
+                    std::ptrdiff_t waveIndex = std::ranges::distance(std::ranges::begin(NalorakkEventWaves), nalorakkEventWave);
+                    ++killedUnitInWaveCounter[waveIndex];
+
+                    if (killedUnitInWaveCounter[waveIndex] == nalorakkEventWave->CreatureCount)
+                        if (Creature* nalorakk = GetCreature(BOSS_NALORAKK))
+                            nalorakk->AI()->DoAction(nalorakkEventWave->ActionId);
+                }
+            }
+
             void SummonHostage(uint8 num)
             {
                 if (!QuestMinute)
@@ -161,8 +201,8 @@ class instance_zulaman : public InstanceMapScript
                 {
                     if (Unit* hostage = player->SummonCreature(HostageInfo[num].npc, HostageInfo[num].pos, TEMPSUMMON_DEAD_DESPAWN))
                     {
-                        hostage->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
-                        hostage->SetFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP);
+                        hostage->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
+                        hostage->SetNpcFlag(UNIT_NPC_FLAG_GOSSIP);
                     }
                 }
             }
@@ -306,6 +346,9 @@ class instance_zulaman : public InstanceMapScript
                     QuestTimer -= diff;
                 }
             }
+
+        protected:
+            std::array<uint8, 4> killedUnitInWaveCounter = { };
         };
 
         InstanceScript* GetInstanceScript(InstanceMap* map) const override

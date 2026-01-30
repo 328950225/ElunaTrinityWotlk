@@ -15,11 +15,11 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-
 #ifndef _DYNTREE_H
 #define _DYNTREE_H
 
 #include "Define.h"
+#include "Optional.h"
 
 namespace G3D
 {
@@ -49,8 +49,7 @@ public:
 
     bool getIntersectionTime(uint32 phasemask, const G3D::Ray& ray,
                              const G3D::Vector3& endPos, float& maxDist) const;
-    bool getAreaInfo(float x, float y, float& z, uint32 phasemask, uint32& flags, int32& adtId, int32& rootId, int32& groupId) const;
-    void getAreaAndLiquidData(float x, float y, float z, uint32 phasemask, uint8 reqLiquidType, VMAP::AreaAndLiquidData& data) const;
+    bool getAreaAndLiquidData(float x, float y, float z, uint32 phasemask, Optional<uint8> reqLiquidType, VMAP::AreaAndLiquidData& data) const;
 
     bool getObjectHitPos(uint32 phasemask, const G3D::Vector3& pPos1,
                          const G3D::Vector3& pPos2, G3D::Vector3& pResultHitPos,

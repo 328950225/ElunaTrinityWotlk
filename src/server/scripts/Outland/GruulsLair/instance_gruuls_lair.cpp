@@ -19,7 +19,6 @@
 #include "Creature.h"
 #include "gruuls_lair.h"
 #include "InstanceScript.h"
-#include "Map.h"
 
 DoorData const doorData[] =
 {
@@ -38,6 +37,12 @@ MinionData const minionData[] =
     { 0, 0 }
 };
 
+ObjectData const creatureData[] =
+{
+    { NPC_MAULGAR,              DATA_MAULGAR },
+    { 0,                        0            } // END
+};
+
 class instance_gruuls_lair : public InstanceMapScript
 {
     public:
@@ -45,42 +50,14 @@ class instance_gruuls_lair : public InstanceMapScript
 
         struct instance_gruuls_lair_InstanceMapScript : public InstanceScript
         {
-            instance_gruuls_lair_InstanceMapScript(Map* map) : InstanceScript(map)
+            instance_gruuls_lair_InstanceMapScript(InstanceMap* map) : InstanceScript(map)
             {
                 SetHeaders(DataHeader);
                 SetBossNumber(EncounterCount);
                 LoadDoorData(doorData);
                 LoadMinionData(minionData);
+                LoadObjectData(creatureData, nullptr);
             }
-
-            void OnCreatureCreate(Creature* creature) override
-            {
-                InstanceScript::OnCreatureCreate(creature);
-
-                switch (creature->GetEntry())
-                {
-                    case NPC_MAULGAR:
-                        MaulgarGUID = creature->GetGUID();
-                        break;
-                    default:
-                        break;
-                }
-            }
-
-            ObjectGuid GetGuidData(uint32 type) const override
-            {
-                switch (type)
-                {
-                    case DATA_MAULGAR:
-                        return MaulgarGUID;
-                    default:
-                        break;
-                }
-                return ObjectGuid::Empty;
-            }
-
-        protected:
-            ObjectGuid MaulgarGUID;
         };
 
         InstanceScript* GetInstanceScript(InstanceMap* map) const override

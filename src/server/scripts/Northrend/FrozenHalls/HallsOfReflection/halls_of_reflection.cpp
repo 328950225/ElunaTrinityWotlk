@@ -382,12 +382,12 @@ class npc_jaina_or_sylvanas_intro_hor : public CreatureScript
                     case 0:
                         player->PlayerTalkClass->SendCloseGossip();
                         _events.ScheduleEvent(EVENT_START_INTRO, 1s);
-                        me->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP | UNIT_NPC_FLAG_QUESTGIVER);
+                        me->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP | UNIT_NPC_FLAG_QUESTGIVER);
                         break;
                     case 1:
                         player->PlayerTalkClass->SendCloseGossip();
                         _events.ScheduleEvent(EVENT_SKIP_INTRO, 1s);
-                        me->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP | UNIT_NPC_FLAG_QUESTGIVER);
+                        me->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP | UNIT_NPC_FLAG_QUESTGIVER);
                         break;
                     default:
                         break;
@@ -402,7 +402,7 @@ class npc_jaina_or_sylvanas_intro_hor : public CreatureScript
                 _utherGUID.Clear();
                 _lichkingGUID.Clear();
 
-                me->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP | UNIT_NPC_FLAG_QUESTGIVER);
+                me->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP | UNIT_NPC_FLAG_QUESTGIVER);
                 me->SetStandState(UNIT_STAND_STATE_STAND);
                 _events.ScheduleEvent(EVENT_WALK_INTRO1, 3s);
             }
@@ -435,7 +435,7 @@ class npc_jaina_or_sylvanas_intro_hor : public CreatureScript
                             Talk(SAY_JAINA_INTRO_2);
                         else
                             Talk(SAY_SYLVANAS_INTRO_2);
-                        me->SetFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP | UNIT_NPC_FLAG_QUESTGIVER);
+                        me->SetNpcFlag(UNIT_NPC_FLAG_GOSSIP | UNIT_NPC_FLAG_QUESTGIVER);
                         break;
                     case EVENT_START_INTRO:
                         if (Creature* korelnOrLoralen = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_KORELN_LORALEN)))
@@ -631,7 +631,7 @@ class npc_jaina_or_sylvanas_intro_hor : public CreatureScript
                         }
                         if (Creature* uther = ObjectAccessor::GetCreature(*me, _utherGUID))
                         {
-                            uther->SetUInt32Value(UNIT_NPC_EMOTESTATE, EMOTE_STATE_COWER);
+                            uther->SetEmoteState(EMOTE_STATE_COWER);
                             if (_instance->GetData(DATA_TEAM_IN_INSTANCE) == ALLIANCE)
                                 uther->AI()->Talk(SAY_UTHER_INTRO_A2_9);
                             else
@@ -712,7 +712,7 @@ class npc_jaina_or_sylvanas_intro_hor : public CreatureScript
                     case EVENT_INTRO_LK_9:
                         if (Creature* falric = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_FALRIC)))
                             falric->AI()->Talk(SAY_FALRIC_INTRO_2);
-                        _instance->ProcessEvent(0, EVENT_SPAWN_WAVES);
+                        _instance->ProcessEvent(nullptr, EVENT_SPAWN_WAVES);
                         _events.ScheduleEvent(EVENT_INTRO_LK_10, 4s);
                         break;
                     case EVENT_INTRO_LK_10:
@@ -846,7 +846,7 @@ class npc_jaina_or_sylvanas_escape_hor : public CreatureScript
                     lichking->AI()->EnterEvadeMode(); // event failed
             }
 
-            void DamageTaken(Unit* /*attacker*/, uint32& damage) override
+            void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) override
             {
                 if (damage >= me->GetHealth() && _invincibility)
                     damage = me->GetHealth() - 1;
@@ -902,7 +902,7 @@ class npc_jaina_or_sylvanas_escape_hor : public CreatureScript
                 {
                     case 0:
                         player->PlayerTalkClass->SendCloseGossip();
-                        me->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP);
+                        me->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP);
                         _events.ScheduleEvent(EVENT_ESCAPE_6, 0s);
                         break;
                     default:
@@ -966,7 +966,7 @@ class npc_jaina_or_sylvanas_escape_hor : public CreatureScript
                             me->RemoveAurasDueToSpell(SPELL_JAINA_ICE_BARRIER);
                         else
                             me->RemoveAurasDueToSpell(SPELL_SYLVANAS_CLOAK_OF_DARKNESS);
-                        me->SetFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP);
+                        me->SetNpcFlag(UNIT_NPC_FLAG_GOSSIP);
                         me->SetHealth(JAINA_SYLVANAS_MAX_HEALTH);
                         me->SetFacingTo(SylvanasShadowThroneDoorPosition.GetOrientation());
                         break;
@@ -1013,7 +1013,7 @@ class npc_jaina_or_sylvanas_escape_hor : public CreatureScript
                                 lichking->AI()->AttackStart(me);
                             }
                             me->SetHealth(JAINA_SYLVANAS_MAX_HEALTH);
-                            me->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP | UNIT_NPC_FLAG_QUESTGIVER);
+                            me->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP | UNIT_NPC_FLAG_QUESTGIVER);
                             break;
                         case EVENT_ESCAPE_1:
                             if (Creature* lichking = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_THE_LICH_KING_ESCAPE)))
@@ -1038,7 +1038,7 @@ class npc_jaina_or_sylvanas_escape_hor : public CreatureScript
                             if (Creature* lichking = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_THE_LICH_KING_ESCAPE)))
                             {
                                 lichking->SetReactState(REACT_PASSIVE);
-                                lichking->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PACIFIED);
+                                lichking->SetUnitFlag(UNIT_FLAG_PACIFIED);
                             }
 
                             _events.ScheduleEvent(EVENT_ESCAPE_3, 1500ms);
@@ -1071,7 +1071,7 @@ class npc_jaina_or_sylvanas_escape_hor : public CreatureScript
                         case EVENT_ESCAPE_6:
                             if (Creature* lichking = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_THE_LICH_KING_ESCAPE)))
                             {
-                                lichking->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PACIFIED);
+                                lichking->RemoveUnitFlag(UNIT_FLAG_PACIFIED);
                                 lichking->SetImmuneToPC(false);
 
                                 if (_instance->GetData(DATA_TEAM_IN_INSTANCE) == ALLIANCE)
@@ -1156,7 +1156,7 @@ class npc_jaina_or_sylvanas_escape_hor : public CreatureScript
                             else
                                 Talk(SAY_SYLVANAS_ESCAPE_9);
                             DoCast(me, SPELL_CREDIT_ESCAPING_ARTHAS);
-                            me->SetFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP | UNIT_NPC_FLAG_QUESTGIVER);
+                            me->SetNpcFlag(UNIT_NPC_FLAG_GOSSIP | UNIT_NPC_FLAG_QUESTGIVER);
                             break;
                         default:
                             break;
@@ -1196,7 +1196,7 @@ class npc_the_lich_king_escape_hor : public CreatureScript
                 _despawn = false;
             }
 
-            void DamageTaken(Unit* /*attacker*/, uint32& damage) override
+            void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) override
             {
                 if (damage >= me->GetHealth())
                     damage = me->GetHealth() - 1;
@@ -2076,7 +2076,7 @@ class at_hor_waves_restarter : public AreaTriggerScript
 
             if (_instance->GetData(DATA_INTRO_EVENT) == DONE && _instance->GetBossState(DATA_MARWYN) != DONE)
             {
-                _instance->ProcessEvent(0, EVENT_SPAWN_WAVES);
+                _instance->ProcessEvent(nullptr, EVENT_SPAWN_WAVES);
 
                 if (Creature* falric = ObjectAccessor::GetCreature(*player, _instance->GetGuidData(DATA_FALRIC)))
                 {
@@ -2148,23 +2148,6 @@ enum EscapeEvents
     EVENT_LUMBERING_ABOMINATION_CLEAVE
 };
 
-class HoRStartMovementEvent : public BasicEvent
-{
-    public:
-        explicit HoRStartMovementEvent(Creature* owner) : _owner(owner) { }
-
-        bool Execute(uint64 /*execTime*/, uint32 /*diff*/) override
-        {
-            _owner->SetReactState(REACT_AGGRESSIVE);
-            if (Unit* target = _owner->AI()->SelectTarget(SelectTargetMethod::Random, 0, 0.0f, true))
-                _owner->AI()->AttackStart(target);
-            return true;
-        }
-
-    private:
-        Creature* _owner;
-};
-
 struct npc_escape_event_trash : public ScriptedAI
 {
     npc_escape_event_trash(Creature* creature) : ScriptedAI(creature), _instance(creature->GetInstanceScript()) { }
@@ -2217,7 +2200,7 @@ class npc_raging_ghoul : public CreatureScript
                 me->CastSpell(me, SPELL_RAGING_GHOUL_SPAWN, true);
                 me->SetReactState(REACT_PASSIVE);
                 me->HandleEmoteCommand(EMOTE_ONESHOT_EMERGE);
-                me->m_Events.AddEvent(new HoRStartMovementEvent(me), me->m_Events.CalculateTime(5s));
+                SetAggressiveStateAfter(5s);
 
                 npc_escape_event_trash::IsSummonedBy(summoner);
             }
@@ -2283,7 +2266,7 @@ class npc_risen_witch_doctor : public CreatureScript
                 me->CastSpell(me, SPELL_RISEN_WITCH_DOCTOR_SPAWN, true);
                 me->SetReactState(REACT_PASSIVE);
                 me->HandleEmoteCommand(EMOTE_ONESHOT_EMERGE);
-                me->m_Events.AddEvent(new HoRStartMovementEvent(me), me->m_Events.CalculateTime(5s));
+                SetAggressiveStateAfter(5s);
 
                 npc_escape_event_trash::IsSummonedBy(summoner);
             }
@@ -2477,7 +2460,7 @@ class npc_uther_quel_delar : public CreatureScript
                 _events.ScheduleEvent(EVENT_UTHER_1, 1ms);
             }
 
-            void DamageTaken(Unit* /*attacker*/, uint32& damage) override
+            void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) override
             {
                 if (damage >= me->GetHealth())
                     damage = me->GetHealth() - 1;
@@ -2811,7 +2794,7 @@ class spell_hor_evasion : public SpellScriptLoader
                     return;
 
                 float angle = pos.GetAbsoluteAngle(&home);
-                float dist = GetSpellInfo()->Effects[EFFECT_0].CalcRadius(GetCaster());
+                float dist = GetEffectInfo().CalcRadius(GetCaster());
                 target->MovePosition(pos, dist, angle);
 
                 dest.Relocate(pos);
@@ -2869,7 +2852,7 @@ class spell_hor_quel_delars_will : public SpellScript
 
     bool Validate(SpellInfo const* spellInfo) override
     {
-        return ValidateSpellInfo({ spellInfo->Effects[EFFECT_0].TriggerSpell });
+        return ValidateSpellInfo({ spellInfo->GetEffect(EFFECT_0).TriggerSpell });
     }
 
     void HandleReagent(SpellEffIndex effIndex)
@@ -2877,7 +2860,7 @@ class spell_hor_quel_delars_will : public SpellScript
         PreventHitDefaultEffect(effIndex);
 
         // dummy spell consumes reagent, don't ignore it
-        GetHitUnit()->CastSpell(GetCaster(), GetSpellInfo()->Effects[effIndex].TriggerSpell, TriggerCastFlags(TRIGGERED_FULL_MASK & ~TRIGGERED_IGNORE_POWER_AND_REAGENT_COST));
+        GetHitUnit()->CastSpell(GetCaster(), GetEffectInfo().TriggerSpell, TRIGGERED_FULL_MASK & ~TRIGGERED_IGNORE_POWER_AND_REAGENT_COST);
     }
 
     void Register() override

@@ -91,8 +91,8 @@ public:
 
             DoCast(me, SPELL_IRRIDATION, true);
 
-            me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED);
-            me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IN_COMBAT);
+            me->SetPvP(true);
+            me->SetUnitFlag(UNIT_FLAG_IN_COMBAT);
             me->SetHealth(me->CountPctFromMaxHealth(10));
             me->SetStandState(UNIT_STAND_STATE_SLEEP);
         }
@@ -115,7 +115,7 @@ public:
         {
             if (spellInfo->SpellFamilyFlags[2] & 0x080000000)
             {
-                me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED);
+                me->SetPvP(false);
                 me->SetStandState(UNIT_STAND_STATE_STAND);
 
                 DoCast(me, SPELL_STUNNED, true);
@@ -202,7 +202,7 @@ public:
         {
             Initialize();
             NormFaction = creature->GetFaction();
-            NpcFlags = creature->GetUInt32Value(UNIT_NPC_FLAGS);
+            NpcFlags = creature->GetNpcFlags();
         }
 
         void Initialize()
@@ -221,7 +221,7 @@ public:
             Initialize();
 
             me->SetFaction(NormFaction);
-            me->SetUInt32Value(UNIT_NPC_FLAGS, NpcFlags);
+            me->ReplaceAllNpcFlags(NpcFlags);
         }
 
         void JustEngagedWith(Unit* who) override
@@ -265,7 +265,7 @@ public:
 
     private:
         uint32 NormFaction;
-        uint32 NpcFlags;
+        NPCFlags NpcFlags;
         uint32 DynamiteTimer;
         uint32 EmoteTimer;
         bool   IsTreeEvent;
@@ -292,7 +292,7 @@ public:
 
         void Reset() override
         {
-            me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IN_COMBAT);
+            me->SetUnitFlag(UNIT_FLAG_IN_COMBAT);
             me->SetHealth(me->CountPctFromMaxHealth(15));
             switch (urand(0, 1))
             {
@@ -338,7 +338,8 @@ enum Magwin
     EVENT_STAND                 = 3,
     EVENT_TALK_END              = 4,
     EVENT_COWLEN_TALK           = 5,
-    QUEST_A_CRY_FOR_HELP        = 9528
+    QUEST_A_CRY_FOR_HELP        = 9528,
+    PATH_ESCORT_MAGWIN          = 138498,
 };
 
 class npc_magwin : public CreatureScript
@@ -381,7 +382,6 @@ public:
                     case 28:
                         player->GroupEventHappens(QUEST_A_CRY_FOR_HELP, me);
                         _events.ScheduleEvent(EVENT_TALK_END, 2s);
-                        SetRun(true);
                         break;
                     case 29:
                         if (Creature* cowlen = me->FindNearestCreature(NPC_COWLEN, 50.0f, true))
@@ -408,11 +408,14 @@ public:
                         break;
                     case EVENT_START_ESCORT:
                         if (Player* player = ObjectAccessor::GetPlayer(*me, _player))
-                            EscortAI::Start(true, false, player->GetGUID());
+                        {
+                            LoadPath(PATH_ESCORT_MAGWIN);
+                            EscortAI::Start(true, player->GetGUID());
+                        }
                         _events.ScheduleEvent(EVENT_STAND, 2s);
                         break;
                     case EVENT_STAND: // Remove kneel standstate. Using a separate delayed event because it causes unwanted delay before starting waypoint movement.
-                        me->SetByteValue(UNIT_FIELD_BYTES_1, 0, 0);
+                        me->SetStandState(UNIT_STAND_STATE_STAND);
                         break;
                     case EVENT_TALK_END:
                         if (Player* player = ObjectAccessor::GetPlayer(*me, _player))
@@ -509,7 +512,7 @@ public:
             {
                 SparkGUID = Spark->GetGUID();
                 Spark->setActive(true);
-                Spark->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP);
+                Spark->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP);
             }
             SayTimer = 8000;
         }
@@ -617,7 +620,7 @@ public:
     }
 };
 
-// 29528 -  Inoculate Nestlewood Owlkin
+// 29528 - Inoculate Nestlewood Owlkin
 class spell_inoculate_nestlewood : public AuraScript
 {
     PrepareAuraScript(spell_inoculate_nestlewood);
@@ -634,6 +637,95 @@ class spell_inoculate_nestlewood : public AuraScript
     }
 };
 
+/*######
+## Quest 9452: Red Snapper - Very Tasty!
+######*/
+
+enum RedSnapperVeryTasty
+{
+    SPELL_FISHED_UP_RED_SNAPPER  = 29867,
+    SPELL_FISHED_UP_MURLOC       = 29869
+};
+
+// 29866 - Cast Fishing Net
+class spell_azuremyst_isle_cast_fishing_net : public SpellScript
+{
+    PrepareSpellScript(spell_azuremyst_isle_cast_fishing_net);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_FISHED_UP_RED_SNAPPER, SPELL_FISHED_UP_MURLOC });
+    }
+
+    void HandleDummy(SpellEffIndex /*effIndex*/)
+    {
+        GetCaster()->CastSpell(GetCaster(), roll_chance_i(66) ? SPELL_FISHED_UP_RED_SNAPPER : SPELL_FISHED_UP_MURLOC);
+    }
+
+    void Register() override
+    {
+        OnEffectHit += SpellEffectFn(spell_azuremyst_isle_cast_fishing_net::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
+    }
+};
+
+/*######
+## Quest 9542: Totem of Vark
+######*/
+
+enum TotemOfVark
+{
+    SPELL_SHADOW_OF_THE_FOREST_SI_DND     = 32213
+};
+
+// 30447 - Shadow of the Forest
+class spell_azuremyst_isle_shadow_of_the_forest_creature : public AuraScript
+{
+    PrepareAuraScript(spell_azuremyst_isle_shadow_of_the_forest_creature);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_SHADOW_OF_THE_FOREST_SI_DND });
+    }
+
+    void AfterApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+    {
+        GetTarget()->CastSpell(GetTarget(), SPELL_SHADOW_OF_THE_FOREST_SI_DND, true);
+    }
+
+    void Register() override
+    {
+        AfterEffectApply += AuraEffectApplyFn(spell_azuremyst_isle_shadow_of_the_forest_creature::AfterApply, EFFECT_0, SPELL_AURA_TRANSFORM, AURA_EFFECT_HANDLE_REAL);
+    }
+};
+
+// 30448 - Shadow of the Forest
+class spell_azuremyst_isle_shadow_of_the_forest_player : public AuraScript
+{
+    PrepareAuraScript(spell_azuremyst_isle_shadow_of_the_forest_player);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_SHADOW_OF_THE_FOREST_SI_DND });
+    }
+
+    void AfterApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+    {
+        if (Unit* caster = GetCaster())
+            caster->CastSpell(GetTarget(), SPELL_SHADOW_OF_THE_FOREST_SI_DND, true);
+    }
+
+    void AfterRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+    {
+        GetTarget()->RemoveAurasDueToSpell(SPELL_SHADOW_OF_THE_FOREST_SI_DND);
+    }
+
+    void Register() override
+    {
+        AfterEffectApply += AuraEffectApplyFn(spell_azuremyst_isle_shadow_of_the_forest_player::AfterApply, EFFECT_0, SPELL_AURA_TRANSFORM, AURA_EFFECT_HANDLE_REAL);
+        AfterEffectRemove += AuraEffectRemoveFn(spell_azuremyst_isle_shadow_of_the_forest_player::AfterRemove, EFFECT_0, SPELL_AURA_TRANSFORM, AURA_EFFECT_HANDLE_REAL);
+    }
+};
+
 void AddSC_azuremyst_isle()
 {
     new npc_draenei_survivor();
@@ -642,4 +734,7 @@ void AddSC_azuremyst_isle()
     new npc_magwin();
     new npc_geezle();
     RegisterSpellScript(spell_inoculate_nestlewood);
+    RegisterSpellScript(spell_azuremyst_isle_cast_fishing_net);
+    RegisterSpellScript(spell_azuremyst_isle_shadow_of_the_forest_creature);
+    RegisterSpellScript(spell_azuremyst_isle_shadow_of_the_forest_player);
 }

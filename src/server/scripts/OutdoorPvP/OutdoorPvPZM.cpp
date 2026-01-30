@@ -37,7 +37,6 @@ uint32 const ZM_GRAVEYARD_ZONE = 3521;
 // linked when the central tower is controlled
 uint32 const ZM_GRAVEYARD_ID = 969;
 
-
 // banners 182527, 182528, 182529, gotta check them ingame
 go_type const ZM_Banner_A = { 182527, 530, { 253.54f, 7083.81f, 36.7728f, -0.017453f }, { 0.0f, 0.0f, 0.008727f, -0.999962f } };
 go_type const ZM_Banner_H = { 182528, 530, { 253.54f, 7083.81f, 36.7728f, -0.017453f }, { 0.0f, 0.0f, 0.008727f, -0.999962f } };
@@ -336,7 +335,7 @@ void OPvPCapturePointZM_Graveyard::SetBeaconState(uint32 controlling_faction)
         if (m_GraveyardState & ZM_GRAVEYARD_N)
         {
             // gy was neutral, thus neutral banner was spawned, it is possible that someone was taking the flag to the gy
-            if (m_FlagCarrierGUID)
+            if (!m_FlagCarrierGUID.IsEmpty())
             {
                 // remove flag from carrier, reset flag carrier guid
                 Player* p = ObjectAccessor::FindPlayer(m_FlagCarrierGUID);
@@ -375,7 +374,7 @@ bool OPvPCapturePointZM_Graveyard::HandleGossipOption(Player* player, Creature* 
     if (itr != m_CreatureTypes.end())
     {
         // if the flag is already taken, then return
-        if (m_FlagCarrierGUID)
+        if (!m_FlagCarrierGUID.IsEmpty())
             return true;
         if (itr->second == ZM_ALLIANCE_FIELD_SCOUT)
         {

@@ -57,7 +57,9 @@ enum BlastmasterEmi
     SAY_BLASTMASTER_18  = 18,
     SAY_BLASTMASTER_19  = 19,
 
-    SAY_GRUBBIS         = 0
+    SAY_GRUBBIS         = 0,
+
+    PATH_ESCORT_BLASTMASTER_EMI = 63986,
 };
 
 const Position SpawnPosition[] =
@@ -134,7 +136,8 @@ public:
         {
             if (gossipListId == 0)
             {
-                Start(true, false, player->GetGUID());
+                LoadPath(PATH_ESCORT_BLASTMASTER_EMI);
+                Start(true, player->GetGUID());
 
                 me->SetFaction(player->GetFaction());
                 SetData(1, 0);
@@ -312,7 +315,7 @@ public:
                     if (GameObject* go = me->SummonGameObject(183410, -533.140f, -105.322f, -156.016f, 0.f, QuaternionData(), 1s))
                     {
                         GoSummonList.push_back(go->GetGUID());
-                        go->SetFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE); //We can't use it!
+                        go->SetFlag(GO_FLAG_NOT_SELECTABLE); //We can't use it!
                     }
                     Summon(3);
                     break;
@@ -327,7 +330,7 @@ public:
                     if (GameObject* go = me->SummonGameObject(183410, -542.199f, -96.854f, -155.790f, 0.f, QuaternionData(), 1s))
                     {
                         GoSummonList.push_back(go->GetGUID());
-                        go->SetFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
+                        go->SetFlag(GO_FLAG_NOT_SELECTABLE);
                     }
                     break;
                 case 5:
@@ -341,7 +344,7 @@ public:
                     if (GameObject* go = me->SummonGameObject(183410, -507.820f, -103.333f, -151.353f, 0.f, QuaternionData(), 1s))
                     {
                         GoSummonList.push_back(go->GetGUID());
-                        go->SetFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE); //We can't use it!
+                        go->SetFlag(GO_FLAG_NOT_SELECTABLE); //We can't use it!
                         Summon(5);
                     }
                     break;
@@ -349,7 +352,7 @@ public:
                     if (GameObject* go = me->SummonGameObject(183410, -511.829f, -86.249f, -151.431f, 0.f, QuaternionData(), 1s))
                     {
                         GoSummonList.push_back(go->GetGUID());
-                        go->SetFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE); //We can't use it!
+                        go->SetFlag(GO_FLAG_NOT_SELECTABLE); //We can't use it!
                     }
                     break;
                 case 8:

@@ -15,20 +15,21 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "ScriptMgr.h"
-#include "GridNotifiers.h"
 #include "icecrown_citadel.h"
+#include "Containers.h"
+#include "GridNotifiers.h"
 #include "InstanceScript.h"
 #include "Map.h"
 #include "MotionMaster.h"
 #include "ObjectAccessor.h"
+#include "Player.h"
 #include "ScriptedCreature.h"
-#include "Spell.h"
+#include "ScriptMgr.h"
+#include "SpellAuraEffects.h"
 #include "SpellMgr.h"
 #include "SpellScript.h"
-#include "SpellAuraEffects.h"
 
-enum Texts
+enum LanathelTexts
 {
     SAY_AGGRO                   = 0,
     SAY_VAMPIRIC_BITE           = 1,
@@ -45,7 +46,7 @@ enum Texts
     EMOTE_BERSERK_RAID          = 12
 };
 
-enum Spells
+enum LanathelSpells
 {
     SPELL_SHROUD_OF_SORROW                  = 70986,
     SPELL_FRENZIED_BLOODTHIRST_VISUAL       = 71949,
@@ -76,7 +77,7 @@ enum Spells
     SPELL_BLOOD_INFUSION_CREDIT             = 72934
 };
 
-enum Shadowmourne
+enum LanathelMisc
 {
     QUEST_BLOOD_INFUSION                    = 24756,
 
@@ -97,7 +98,7 @@ uint32 const vampireAuras[3][MAX_DIFFICULTY] =
 #define DELIRIOUS_SLASH            RAID_MODE<uint32>(71623, 71624, 71625, 71626)
 #define PRESENCE_OF_THE_DARKFALLEN RAID_MODE<uint32>(70994, 71962, 71963, 71964)
 
-enum Events
+enum LanathelEvents
 {
     EVENT_BERSERK                   = 1,
     EVENT_VAMPIRIC_BITE             = 2,
@@ -114,13 +115,13 @@ enum Events
     EVENT_GROUP_CANCELLABLE         = 2,
 };
 
-enum Guids
+enum LanathelGuids
 {
     GUID_VAMPIRE    = 1,
     GUID_BLOODBOLT  = 2,
 };
 
-enum Points
+enum LanathelPoints
 {
     POINT_CENTER    = 1,
     POINT_AIR       = 2,
@@ -140,6 +141,7 @@ bool IsVampire(Unit const* unit)
     return false;
 }
 
+// 37955 - Blood-Queen Lana'thel
 struct boss_blood_queen_lana_thel : public BossAI
 {
     boss_blood_queen_lana_thel(Creature* creature) : BossAI(creature, DATA_BLOOD_QUEEN_LANA_THEL)
@@ -209,8 +211,8 @@ struct boss_blood_queen_lana_thel : public BossAI
                 player->RewardPlayerAndGroupAtEvent(Is25ManRaid() ? NPC_INFILTRATOR_MINCHAR_BQ_25 : NPC_INFILTRATOR_MINCHAR_BQ, player);
             if (Creature* minchar = me->FindNearestCreature(NPC_INFILTRATOR_MINCHAR_BQ, 200.0f))
             {
-                minchar->SetUInt32Value(UNIT_NPC_EMOTESTATE, 0);
-                minchar->SetAnimationTier(AnimationTier::Ground);
+                minchar->SetEmoteState(EMOTE_ONESHOT_NONE);
+                minchar->SetAnimTier(AnimTier::Ground);
                 minchar->SetCanFly(false);
                 minchar->RemoveAllAuras();
                 minchar->GetMotionMaster()->MoveCharge(4629.3711f, 2782.6089f, 401.5301f, SPEED_CHARGE / 3.0f);
@@ -399,7 +401,7 @@ struct boss_blood_queen_lana_thel : public BossAI
                     break;
                 }
                 case EVENT_DELIRIOUS_SLASH:
-                    if (_offtankGUID && me->GetAnimationTier() != AnimationTier::Fly)
+                    if (!_offtankGUID.IsEmpty() && me->GetAnimTier() != AnimTier::Fly)
                         if (Player* _offtank = ObjectAccessor::GetPlayer(*me, _offtankGUID))
                             DoCast(_offtank, SPELL_DELIRIOUS_SLASH);
                     events.ScheduleEvent(EVENT_DELIRIOUS_SLASH, 20s, 24s, EVENT_GROUP_NORMAL);
@@ -515,6 +517,7 @@ private:
 // helper for shortened code
 typedef boss_blood_queen_lana_thel LanaThelAI;
 
+// 70946, 71475, 71476, 71477 - Vampiric Bite
 class spell_blood_queen_vampiric_bite : public SpellScript
 {
     PrepareSpellScript(spell_blood_queen_vampiric_bite);
@@ -575,6 +578,7 @@ class spell_blood_queen_vampiric_bite : public SpellScript
     }
 };
 
+// 70877, 71474 - Frenzied Bloodthirst
 class spell_blood_queen_frenzied_bloodthirst : public AuraScript
 {
     PrepareAuraScript(spell_blood_queen_frenzied_bloodthirst);
@@ -623,6 +627,7 @@ class BloodboltHitCheck
         LanaThelAI* _ai;
 };
 
+// 71899, 71900, 71901, 71902 - Bloodbolt Whirl
 class spell_blood_queen_bloodbolt : public SpellScript
 {
     PrepareSpellScript(spell_blood_queen_bloodbolt);
@@ -688,6 +693,7 @@ class spell_blood_queen_essence_of_the_blood_queen : public AuraScript
     }
 };
 
+// 71390 - Pact of the Darkfallen
 class spell_blood_queen_pact_of_the_darkfallen : public SpellScript
 {
     PrepareSpellScript(spell_blood_queen_pact_of_the_darkfallen);
@@ -725,6 +731,7 @@ class spell_blood_queen_pact_of_the_darkfallen : public SpellScript
     }
 };
 
+// 71340 - Pact of the Darkfallen
 class spell_blood_queen_pact_of_the_darkfallen_dmg : public AuraScript
 {
     PrepareAuraScript(spell_blood_queen_pact_of_the_darkfallen_dmg);
@@ -738,7 +745,7 @@ class spell_blood_queen_pact_of_the_darkfallen_dmg : public AuraScript
     void PeriodicTick(AuraEffect const* aurEff)
     {
         SpellInfo const* damageSpell = sSpellMgr->AssertSpellInfo(SPELL_PACT_OF_THE_DARKFALLEN_DAMAGE);
-        int32 damage = damageSpell->Effects[EFFECT_0].CalcValue();
+        int32 damage = damageSpell->GetEffect(EFFECT_0).CalcValue();
         float multiplier = 0.3375f + 0.1f * uint32(aurEff->GetTickNumber()/10); // do not convert to 0.01f - we need tick number/10 as INT (damage increases every 10 ticks)
         damage = int32(damage * multiplier);
 
@@ -753,6 +760,7 @@ class spell_blood_queen_pact_of_the_darkfallen_dmg : public AuraScript
     }
 };
 
+// 71341 - Pact of the Darkfallen
 class spell_blood_queen_pact_of_the_darkfallen_dmg_target : public SpellScript
 {
     PrepareSpellScript(spell_blood_queen_pact_of_the_darkfallen_dmg_target);

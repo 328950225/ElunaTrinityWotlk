@@ -21,8 +21,7 @@
 #include "Common.h"
 #include "Duration.h"
 #include "EventProcessor.h"
-#include "GridReference.h"
-#include "GridRefManager.h"
+#include "MapDefines.h"
 #include "ModelIgnoreFlags.h"
 #include "MovementInfo.h"
 #include "ObjectDefines.h"
@@ -31,11 +30,16 @@
 #include "Position.h"
 #include "SharedDefines.h"
 #include "SpellDefines.h"
+#include "UniqueTrackablePtr.h"
 #include "UpdateFields.h"
 #include "UpdateMask.h"
 #include <list>
 #include <set>
 #include <unordered_map>
+#ifdef ELUNA
+#include "ElunaEventMgr.h"
+#include "LuaValue.h"
+#endif
 
 class Corpse;
 class Creature;
@@ -43,10 +47,12 @@ class CreatureAI;
 class DynamicObject;
 class GameObject;
 class InstanceScript;
+class Item;
 class Map;
 class Player;
 class Spell;
 class SpellCastTargets;
+class SpellEffectInfo;
 class SpellInfo;
 class TempSummon;
 class Transport;
@@ -56,12 +62,12 @@ class WorldObject;
 class WorldPacket;
 class ZoneScript;
 #ifdef ELUNA
+class ElunaEventProcessorInfo;
 class ElunaEventProcessor;
+class Eluna;
 #endif
 struct FactionTemplateEntry;
-struct PositionFullTerrainStatus;
 struct QuaternionData;
-enum ZLiquidStatus : uint32;
 
 typedef std::unordered_map<Player*, UpdateData> UpdateDataMapType;
 
@@ -86,13 +92,19 @@ class TC_GAME_API Object
         float GetObjectScale() const { return GetFloatValue(OBJECT_FIELD_SCALE_X); }
         virtual void SetObjectScale(float scale) { SetFloatValue(OBJECT_FIELD_SCALE_X, scale); }
 
+        virtual uint32 GetDynamicFlags() const { return 0; }
+        bool HasDynamicFlag(uint32 flag) const { return (GetDynamicFlags() & flag) != 0; }
+        virtual void SetDynamicFlag(uint32 flag) { ReplaceAllDynamicFlags(GetDynamicFlags() | flag); }
+        virtual void RemoveDynamicFlag(uint32 flag) { ReplaceAllDynamicFlags(GetDynamicFlags() & ~flag); }
+        virtual void ReplaceAllDynamicFlags([[maybe_unused]] uint32 flag) { }
+
         TypeID GetTypeId() const { return m_objectTypeId; }
         bool isType(uint16 mask) const { return (mask & m_objectType) != 0; }
 
         virtual void BuildCreateUpdateBlockForPlayer(UpdateData* data, Player* target) const;
         void SendUpdateToPlayer(Player* player);
 
-        void BuildValuesUpdateBlockForPlayer(UpdateData* data, Player* target) const;
+        void BuildValuesUpdateBlockForPlayer(UpdateData* data, Player const* target) const;
         void BuildOutOfRangeUpdateBlock(UpdateData* data) const;
         void BuildMovementUpdateBlock(UpdateData* data, uint32 flags = 0) const;
 
@@ -160,56 +172,70 @@ class TC_GAME_API Object
         // FG: some hacky helpers
         void ForceValuesUpdateAtIndex(uint32);
 
+        inline bool IsWorldObject() const { return isType(TYPEMASK_WORLDOBJECT); }
+        static WorldObject* ToWorldObject(Object* o) { return o ? o->ToWorldObject() : nullptr; }
+        static WorldObject const* ToWorldObject(Object const* o) { return o ? o->ToWorldObject() : nullptr; }
+        WorldObject* ToWorldObject() { if (IsWorldObject()) return reinterpret_cast<WorldObject*>(this); else return nullptr; }
+        WorldObject const* ToWorldObject() const { if (IsWorldObject()) return reinterpret_cast<WorldObject const*>(this); else return nullptr; }
+
+        inline bool IsItem() const { return isType(TYPEMASK_ITEM); }
+        static Item* ToItem(Object* o) { return o ? o->ToItem() : nullptr; }
+        static Item const* ToItem(Object const* o) { return o ? o->ToItem() : nullptr; }
+        Item* ToItem() { if (IsItem()) return reinterpret_cast<Item*>(this); else return nullptr; }
+        Item const* ToItem() const { if (IsItem()) return reinterpret_cast<Item const*>(this); else return nullptr; }
+
         inline bool IsPlayer() const { return GetTypeId() == TYPEID_PLAYER; }
-        static Player* ToPlayer(Object* o) { if (o && o->IsPlayer()) return reinterpret_cast<Player*>(o); else return nullptr; }
-        static Player const* ToPlayer(Object const* o) { if (o && o->IsPlayer()) return reinterpret_cast<Player const*>(o); else return nullptr; }
-        Player* ToPlayer() { return ToPlayer(this); }
-        Player const* ToPlayer() const { return ToPlayer(this); }
+        static Player* ToPlayer(Object* o) { return o ? o->ToPlayer() : nullptr; }
+        static Player const* ToPlayer(Object const* o) { return o ? o->ToPlayer() : nullptr; }
+        Player* ToPlayer() { if (IsPlayer()) return reinterpret_cast<Player*>(this); else return nullptr; }
+        Player const* ToPlayer() const { if (IsPlayer()) return reinterpret_cast<Player const*>(this); else return nullptr; }
 
         inline bool IsCreature() const { return GetTypeId() == TYPEID_UNIT; }
-        static Creature* ToCreature(Object* o) { if (o && o->IsCreature()) return reinterpret_cast<Creature*>(o); else return nullptr; }
-        static Creature const* ToCreature(Object const* o) { if (o && o->IsCreature()) return reinterpret_cast<Creature const*>(o); else return nullptr; }
-        Creature* ToCreature() { return ToCreature(this); }
-        Creature const* ToCreature() const { return ToCreature(this); }
+        static Creature* ToCreature(Object* o) { return o ? o->ToCreature() : nullptr; }
+        static Creature const* ToCreature(Object const* o) { return o ? o->ToCreature() : nullptr; }
+        Creature* ToCreature() { if (IsCreature()) return reinterpret_cast<Creature*>(this); else return nullptr; }
+        Creature const* ToCreature() const { if (IsCreature()) return reinterpret_cast<Creature const*>(this); else return nullptr; }
 
         inline bool IsUnit() const { return isType(TYPEMASK_UNIT); }
-        static Unit* ToUnit(Object* o) { if (o && o->IsUnit()) return reinterpret_cast<Unit*>(o); else return nullptr; }
-        static Unit const* ToUnit(Object const* o) { if (o && o->IsUnit()) return reinterpret_cast<Unit const*>(o); else return nullptr; }
-        Unit* ToUnit() { return ToUnit(this); }
-        Unit const* ToUnit() const { return ToUnit(this); }
+        static Unit* ToUnit(Object* o) { return o ? o->ToUnit() : nullptr; }
+        static Unit const* ToUnit(Object const* o) { return o ? o->ToUnit() : nullptr; }
+        Unit* ToUnit() { if (IsUnit()) return reinterpret_cast<Unit*>(this); else return nullptr; }
+        Unit const* ToUnit() const { if (IsUnit()) return reinterpret_cast<Unit const*>(this); else return nullptr; }
 
         inline bool IsGameObject() const { return GetTypeId() == TYPEID_GAMEOBJECT; }
-        static GameObject* ToGameObject(Object* o) { if (o && o->IsGameObject()) return reinterpret_cast<GameObject*>(o); else return nullptr; }
-        static GameObject const* ToGameObject(Object const* o) { if (o && o->IsGameObject()) return reinterpret_cast<GameObject const*>(o); else return nullptr; }
-        GameObject* ToGameObject() { return ToGameObject(this); }
-        GameObject const* ToGameObject() const { return ToGameObject(this); }
+        static GameObject* ToGameObject(Object* o) { return o ? o->ToGameObject() : nullptr; }
+        static GameObject const* ToGameObject(Object const* o) { return o ? o->ToGameObject() : nullptr; }
+        GameObject* ToGameObject() { if (IsGameObject()) return reinterpret_cast<GameObject*>(this); else return nullptr; }
+        GameObject const* ToGameObject() const { if (IsGameObject()) return reinterpret_cast<GameObject const*>(this); else return nullptr; }
 
         inline bool IsCorpse() const { return GetTypeId() == TYPEID_CORPSE; }
-        static Corpse* ToCorpse(Object* o) { if (o && o->IsCorpse()) return reinterpret_cast<Corpse*>(o); else return nullptr; }
-        static Corpse const* ToCorpse(Object const* o) { if (o && o->IsCorpse()) return reinterpret_cast<Corpse const*>(o); else return nullptr; }
-        Corpse* ToCorpse() { return ToCorpse(this); }
-        Corpse const* ToCorpse() const { return ToCorpse(this); }
+        static Corpse* ToCorpse(Object* o) { return o ? o->ToCorpse() : nullptr; }
+        static Corpse const* ToCorpse(Object const* o) { return o ? o->ToCorpse() : nullptr; }
+        Corpse* ToCorpse() { if (IsCorpse()) return reinterpret_cast<Corpse*>(this); else return nullptr; }
+        Corpse const* ToCorpse() const { if (IsCorpse()) return reinterpret_cast<Corpse const*>(this); else return nullptr; }
 
         inline bool IsDynObject() const { return GetTypeId() == TYPEID_DYNAMICOBJECT; }
-        static DynamicObject* ToDynObject(Object* o) { if (o && o->IsDynObject()) return reinterpret_cast<DynamicObject*>(o); else return nullptr; }
-        static DynamicObject const* ToDynObject(Object const* o) { if (o && o->IsDynObject()) return reinterpret_cast<DynamicObject const*>(o); else return nullptr; }
-        DynamicObject* ToDynObject() { return ToDynObject(this); }
-        DynamicObject const* ToDynObject() const { return ToDynObject(this); }
+        static DynamicObject* ToDynObject(Object* o) { return o ? o->ToDynObject() : nullptr; }
+        static DynamicObject const* ToDynObject(Object const* o) { return o ? o->ToDynObject() : nullptr; }
+        DynamicObject* ToDynObject() { if (IsDynObject()) return reinterpret_cast<DynamicObject*>(this); else return nullptr; }
+        DynamicObject const* ToDynObject() const { if (IsDynObject()) return reinterpret_cast<DynamicObject const*>(this); else return nullptr; }
 
         virtual std::string GetDebugInfo() const;
+
+        Trinity::unique_weak_ptr<Object> GetWeakPtr() const { return m_scriptRef; }
 
     protected:
         Object();
 
         void _InitValues();
-        void _Create(ObjectGuid::LowType guidlow, uint32 entry, HighGuid guidhigh);
+        void _Create(ObjectGuid const& guid);
         std::string _ConcatFields(uint16 startIndex, uint16 size) const;
         [[nodiscard]] bool _LoadIntoDataField(std::string const& data, uint32 startOffset, uint32 count);
 
         uint32 GetUpdateFieldData(Player const* target, uint32*& flags) const;
 
         void BuildMovementUpdate(ByteBuffer* data, uint16 flags) const;
-        virtual void BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, Player* target) const;
+        virtual void BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, Player const* target) const;
 
         uint16 m_objectType;
 
@@ -241,26 +267,19 @@ class TC_GAME_API Object
 
         PackedGuid m_PackGUID;
 
+        struct NoopObjectDeleter { void operator()(Object*) const { /*noop - not managed*/ } };
+        Trinity::unique_trackable_ptr<Object> m_scriptRef;
+
         // for output helpfull error messages from asserts
         bool PrintIndexError(uint32 index, bool set) const;
+
         Object(Object const& right) = delete;
+        Object(Object&& right) = delete;
         Object& operator=(Object const& right) = delete;
+        Object& operator=(Object&& right) = delete;
 };
 
-template<class T>
-class GridObject
-{
-    public:
-        virtual ~GridObject() { }
-
-        bool IsInGrid() const { return _gridRef.isValid(); }
-        void AddToGrid(GridRefManager<T>& m) { ASSERT(!IsInGrid()); _gridRef.link(&m, (T*)this); }
-        void RemoveFromGrid() { ASSERT(IsInGrid()); _gridRef.unlink(); }
-    private:
-        GridReference<T> _gridRef;
-};
-
-template <class T_VALUES, class T_FLAGS, class FLAG_TYPE, uint8 ARRAY_SIZE>
+template <class T_VALUES, class T_FLAGS, class FLAG_TYPE, size_t ARRAY_SIZE>
 class FlaggedValuesArray32
 {
     public:
@@ -285,6 +304,43 @@ class FlaggedValuesArray32
         T_FLAGS m_flags;
 };
 
+struct FindCreatureOptions
+{
+    Optional<uint32> CreatureId;
+    Optional<std::string_view> StringId;
+
+    Optional<bool> IsAlive;
+    Optional<bool> IsInCombat;
+    Optional<bool> IsSummon;
+
+    bool IgnorePhases = false;
+    bool IgnoreNotOwnedPrivateObjects = true;
+    bool IgnorePrivateObjects = false;
+
+    Optional<uint32> AuraSpellId;
+    Optional<ObjectGuid> OwnerGuid;
+    Optional<ObjectGuid> CharmerGuid;
+    Optional<ObjectGuid> CreatorGuid;
+    Optional<ObjectGuid> PrivateObjectOwnerGuid;
+};
+
+struct FindGameObjectOptions
+{
+    Optional<uint32> GameObjectId;
+    Optional<std::string_view> StringId;
+
+    Optional<bool> IsSummon;
+    Optional<bool> IsSpawned;
+
+    bool IgnorePhases = false;
+    bool IgnoreNotOwnedPrivateObjects = true;
+    bool IgnorePrivateObjects = false;
+
+    Optional<ObjectGuid> OwnerGuid;
+    Optional<ObjectGuid> PrivateObjectOwnerGuid;
+    Optional<GameobjectTypes> GameObjectType;
+};
+
 class TC_GAME_API WorldObject : public Object, public WorldLocation
 {
     protected:
@@ -292,9 +348,8 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
     public:
         virtual ~WorldObject();
 
-        virtual void Update(uint32 /*time_diff*/);
+        virtual void Update(uint32 /*time_diff*/) { }
 
-        void _Create(ObjectGuid::LowType guidlow, HighGuid guidhigh, uint32 phaseMask);
         void AddToWorld() override;
         void RemoveFromWorld() override;
 
@@ -333,9 +388,9 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
         InstanceScript* GetInstanceScript() const;
 
         std::string const& GetName() const { return m_name; }
-        void SetName(std::string const& newname) { m_name = newname; }
+        void SetName(std::string newname) { m_name = std::move(newname); }
 
-        virtual std::string const& GetNameForLocaleIdx(LocaleConstant /*locale_idx*/) const { return m_name; }
+        virtual std::string const& GetNameForLocaleIdx(LocaleConstant /*locale*/) const { return m_name; }
 
         float GetDistance(WorldObject const* obj) const;
         float GetDistance(Position const& pos) const;
@@ -386,7 +441,7 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
         float GetGridActivationRange() const;
         float GetVisibilityRange() const;
         float GetSightRange(WorldObject const* target = nullptr) const;
-        bool CanSeeOrDetect(WorldObject const* obj, bool ignoreStealth = false, bool distanceCheck = false, bool checkAlert = false) const;
+        bool CanSeeOrDetect(WorldObject const* obj, bool implicitDetect = false, bool distanceCheck = false, bool checkAlert = false) const;
 
         FlaggedValuesArray32<int32, uint32, StealthType, TOTAL_STEALTH_TYPES> m_stealth;
         FlaggedValuesArray32<int32, uint32, StealthType, TOTAL_STEALTH_TYPES> m_stealthDetect;
@@ -407,15 +462,17 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
         void ClearZoneScript();
         ZoneScript* GetZoneScript() const { return m_zoneScript; }
 
-        TempSummon* SummonCreature(uint32 entry, Position const& pos, TempSummonType despawnType = TEMPSUMMON_MANUAL_DESPAWN, Milliseconds despawnTime = 0s, uint32 vehId = 0, uint32 spellId = 0);
-        TempSummon* SummonCreature(uint32 entry, float x, float y, float z, float o = 0, TempSummonType despawnType = TEMPSUMMON_MANUAL_DESPAWN, Milliseconds despawnTime = 0s);
+        TempSummon* SummonCreature(uint32 entry, Position const& pos, TempSummonType despawnType = TEMPSUMMON_MANUAL_DESPAWN, Milliseconds despawnTime = 0s, uint32 vehId = 0, uint32 spellId = 0, ObjectGuid privateObjectOwner = ObjectGuid::Empty);
+        TempSummon* SummonCreature(uint32 entry, float x, float y, float z, float o = 0, TempSummonType despawnType = TEMPSUMMON_MANUAL_DESPAWN, Milliseconds despawnTime = 0s, ObjectGuid privateObjectOwner = ObjectGuid::Empty);
         GameObject* SummonGameObject(uint32 entry, Position const& pos, QuaternionData const& rot, Seconds respawnTime, GOSummonType summonType = GO_SUMMON_TIMED_OR_CORPSE_DESPAWN);
         GameObject* SummonGameObject(uint32 entry, float x, float y, float z, float ang, QuaternionData const& rot, Seconds respawnTime, GOSummonType summonType = GO_SUMMON_TIMED_OR_CORPSE_DESPAWN);
         Creature*   SummonTrigger(float x, float y, float z, float ang, Milliseconds despawnTime, CreatureAI* (*GetAI)(Creature*) = nullptr);
         void SummonCreatureGroup(uint8 group, std::list<TempSummon*>* list = nullptr);
 
         Creature*   FindNearestCreature(uint32 entry, float range, bool alive = true) const;
+        Creature*   FindNearestCreatureWithOptions(float range, FindCreatureOptions const& options) const;
         GameObject* FindNearestGameObject(uint32 entry, float range, bool spawnedOnly = true) const;
+        GameObject* FindNearestGameObjectWithOptions(float range, FindGameObjectOptions const& options) const;
         GameObject* FindNearestUnspawnedGameObject(uint32 entry, float range) const;
         GameObject* FindNearestGameObjectOfType(GameobjectTypes type, float range) const;
         Player* SelectNearestPlayer(float distance) const;
@@ -431,7 +488,7 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
         Player* GetAffectingPlayer() const;
 
         Player* GetSpellModOwner() const;
-        int32 CalculateSpellDamage(SpellInfo const* spellInfo, uint8 effIndex, int32 const* basePoints = nullptr) const;
+        int32 CalculateSpellDamage(SpellEffectInfo const& spellEffectInfo, int32 const* basePoints = nullptr) const;
 
         // target dependent range checks
         float GetSpellMaxRangeForTarget(Unit const* target, SpellInfo const* spellInfo) const;
@@ -462,9 +519,7 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
         bool IsNeutralToAll() const;
 
         // CastSpell's third arg can be a variety of things - check out CastSpellExtraArgs' constructors!
-        SpellCastResult CastSpell(SpellCastTargets const& targets, uint32 spellId, CastSpellExtraArgs const& args = { });
-        SpellCastResult CastSpell(WorldObject* target, uint32 spellId, CastSpellExtraArgs const& args = { });
-        SpellCastResult CastSpell(Position const& dest, uint32 spellId, CastSpellExtraArgs const& args = { });
+        SpellCastResult CastSpell(CastSpellTargetArg const& targets, uint32 spellId, CastSpellExtraArgs const& args = { });
 
         bool IsValidAttackTarget(WorldObject const* target, SpellInfo const* bySpell = nullptr) const;
         bool IsValidAssistTarget(WorldObject const* target, SpellInfo const* bySpell = nullptr) const;
@@ -475,10 +530,16 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
         void GetGameObjectListWithEntryInGrid(Container& gameObjectContainer, uint32 entry, float maxSearchRange = 250.0f) const;
 
         template <typename Container>
+        void GetGameObjectListWithOptionsInGrid(Container& gameObjectContainer, float maxSearchRange, FindGameObjectOptions const& options) const;
+
+        template <typename Container>
         void GetCreatureListWithEntryInGrid(Container& creatureContainer, uint32 entry, float maxSearchRange = 250.0f) const;
 
         template <typename Container>
-        void GetPlayerListInGrid(Container& playerContainer, float maxSearchRange) const;
+        void GetCreatureListWithOptionsInGrid(Container& creatureContainer, float maxSearchRange, FindCreatureOptions const& options) const;
+
+        template <typename Container>
+        void GetPlayerListInGrid(Container& playerContainer, float maxSearchRange, bool alive = true) const;
 
         void DestroyForNearbyPlayers();
         virtual void UpdateObjectVisibility(bool forced = true);
@@ -486,7 +547,6 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
         void UpdatePositionData();
 
         void BuildUpdate(UpdateDataMapType&) override;
-
         bool AddToObjectUpdate() override;
         void RemoveFromObjectUpdate() override;
 
@@ -502,14 +562,21 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
         void SetFarVisible(bool on);
         bool IsVisibilityOverridden() const { return m_visibilityDistanceOverride.has_value(); }
         void SetVisibilityDistanceOverride(VisibilityDistanceType type);
-        void SetWorldObject(bool apply);
-        bool IsPermanentWorldObject() const { return m_isWorldObject; }
-        bool IsWorldObject() const;
+        void SetIsStoredInWorldObjectGridContainer(bool apply);
+        bool IsAlwaysStoredInWorldObjectGridContainer() const { return m_isStoredInWorldObjectGridContainer; }
+        bool IsStoredInWorldObjectGridContainer() const;
 
         uint32  LastUsedScriptID;
 
 #ifdef ELUNA
-        ElunaEventProcessor* elunaEvents;
+        std::unique_ptr<ElunaProcessorInfo> elunaMapEvents;
+        std::unique_ptr<ElunaProcessorInfo> elunaWorldEvents;
+
+        Eluna* GetEluna() const;
+
+        ElunaEventProcessor* GetElunaEvents(int32 mapId);
+
+        LuaVal lua_data = LuaVal({});
 #endif
 
         // Transports
@@ -542,12 +609,18 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
         // Event handler
         EventProcessor m_Events;
 
+        // Watcher
+        bool IsPrivateObject() const { return !_privateObjectOwner.IsEmpty(); }
+        ObjectGuid GetPrivateObjectOwner() const { return _privateObjectOwner; }
+        void SetPrivateObjectOwner(ObjectGuid const& owner) { _privateObjectOwner = owner; }
+        bool CheckPrivateObjectOwnerVisibility(WorldObject const* seer) const;
+
     protected:
         std::string m_name;
         bool m_isActive;
         bool m_isFarVisible;
         Optional<float> m_visibilityDistanceOverride;
-        bool const m_isWorldObject;
+        bool const m_isStoredInWorldObjectGridContainer;
         ZoneScript* m_zoneScript;
 
         // transports
@@ -566,7 +639,7 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
         void SetLocationMapId(uint32 _mapId) { m_mapId = _mapId; }
         void SetLocationInstanceId(uint32 _instanceId) { m_InstanceId = _instanceId; }
 
-        virtual bool IsNeverVisible() const { return !IsInWorld(); }
+        virtual bool IsNeverVisible([[maybe_unused]] bool allowServersideObjects) const { return !IsInWorld(); }
         virtual bool IsAlwaysVisibleFor(WorldObject const* /*seer*/) const { return false; }
         virtual bool IsInvisibleDueToDespawn() const { return false; }
         //difference from IsAlwaysVisibleFor: 1. after distance check; 2. use owner or charmer as seer
@@ -578,6 +651,9 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
         uint32 m_phaseMask;                               // in area phase state
 
         uint16 m_notifyflags;
+
+        ObjectGuid _privateObjectOwner;
+
         virtual bool _IsWithinDist(WorldObject const* obj, float dist2compare, bool is3D, bool incOwnRadius = true, bool incTargetRadius = true) const;
 
         bool CanNeverSee(WorldObject const* obj) const;

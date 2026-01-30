@@ -15,18 +15,13 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-/* ScriptData
-SDName: Boss_Darkweaver_Syth
-SD%Complete: 85
-SDComment: Shock spells/times need more work. Heroic partly implemented.
-SDCategory: Auchindoun, Sethekk Halls
-EndScriptData */
-
 #include "ScriptMgr.h"
 #include "ScriptedCreature.h"
+#include "SpellScript.h"
+#include "SpellInfo.h"
 #include "sethekk_halls.h"
 
-enum Says
+enum SythTexts
 {
     SAY_SUMMON                  = 0,
     SAY_AGGRO                   = 1,
@@ -34,182 +29,189 @@ enum Says
     SAY_DEATH                   = 3
 };
 
-enum Spells
+enum SythSpells
 {
-    SPELL_FROST_SHOCK           = 21401, //37865
+    SPELL_FROST_SHOCK           = 21401,
     SPELL_FLAME_SHOCK           = 34354,
     SPELL_SHADOW_SHOCK          = 30138,
     SPELL_ARCANE_SHOCK          = 37132,
 
-    SPELL_CHAIN_LIGHTNING       = 15659, //15305
+    SPELL_CHAIN_LIGHTNING       = 15659,
 
-    SPELL_SUMMON_SYTH_FIRE      = 33537,                   // Spawns 19203
-    SPELL_SUMMON_SYTH_ARCANE    = 33538,                   // Spawns 19205
-    SPELL_SUMMON_SYTH_FROST     = 33539,                   // Spawns 19204
-    SPELL_SUMMON_SYTH_SHADOW    = 33540,                   // Spawns 19206
+    SPELL_SUMMON_ELEMENTALS     = 33595,
 
-    SPELL_FLAME_BUFFET          = 33526,
-    SPELL_ARCANE_BUFFET         = 33527,
-    SPELL_FROST_BUFFET          = 33528,
-    SPELL_SHADOW_BUFFET         = 33529
+    SPELL_SUMMON_SYTH_FIRE      = 33537,
+    SPELL_SUMMON_SYTH_ARCANE    = 33538,
+    SPELL_SUMMON_SYTH_FROST     = 33539,
+    SPELL_SUMMON_SYTH_SHADOW    = 33540
 };
 
-enum Events
+enum SythEvents
 {
     EVENT_FLAME_SHOCK           = 1,
-    EVENT_ARCANE_SHOCK          = 2,
-    EVENT_FROST_SHOCK           = 3,
-    EVENT_SHADOW_SHOCK          = 4,
-    EVENT_CHAIN_LIGHTNING       = 5
+    EVENT_ARCANE_SHOCK,
+    EVENT_FROST_SHOCK,
+    EVENT_SHADOW_SHOCK,
+    EVENT_CHAIN_LIGHTNING,
+    EVENT_SUMMON
 };
 
-enum Lakka
+enum SythMisc
 {
-    NPC_LAKKA         = 18956,
-    SAY_LAKKA_FREE    = 1
+    NPC_LAKKA                   = 18956,
+    SAY_LAKKA_FREE              = 1
 };
 
-class boss_darkweaver_syth : public CreatureScript
+enum SythPhases : uint8
 {
-public:
-    boss_darkweaver_syth() : CreatureScript("boss_darkweaver_syth") { }
+    PHASE_NONE                  = 0,
+    PHASE_HEALTH_90,
+    PHASE_HEALTH_55,
+    PHASE_HEALTH_10
+};
 
-    struct boss_darkweaver_sythAI : public BossAI
+// 18472 - Darkweaver Syth
+struct boss_darkweaver_syth : public BossAI
+{
+    boss_darkweaver_syth(Creature* creature) : BossAI(creature, DATA_DARKWEAVER_SYTH), _phase(PHASE_NONE) { }
+
+    void Reset() override
     {
-        boss_darkweaver_sythAI(Creature* creature) : BossAI(creature, DATA_DARKWEAVER_SYTH)
-        {
-            Initialize();
-        }
+        _Reset();
+        _phase = PHASE_NONE;
+    }
 
-        void Initialize()
-        {
-            _summon90 = false;
-            _summon50 = false;
-            _summon10 = false;
-        }
+    void JustEngagedWith(Unit* who) override
+    {
+        BossAI::JustEngagedWith(who);
+        events.ScheduleEvent(EVENT_FLAME_SHOCK, 2s);
+        events.ScheduleEvent(EVENT_ARCANE_SHOCK, 4s);
+        events.ScheduleEvent(EVENT_FROST_SHOCK, 6s);
+        events.ScheduleEvent(EVENT_SHADOW_SHOCK, 8s);
+        events.ScheduleEvent(EVENT_CHAIN_LIGHTNING, 10s, 15s);
 
-        void Reset() override
-        {
-            Initialize();
-            _Reset();
-        }
+        Talk(SAY_AGGRO);
+    }
 
-        void JustEngagedWith(Unit* who) override
-        {
-            BossAI::JustEngagedWith(who);
-            events.ScheduleEvent(EVENT_FLAME_SHOCK, 2s);
-            events.ScheduleEvent(EVENT_ARCANE_SHOCK, 4s);
-            events.ScheduleEvent(EVENT_FROST_SHOCK, 6s);
-            events.ScheduleEvent(EVENT_SHADOW_SHOCK, 8s);
-            events.ScheduleEvent(EVENT_CHAIN_LIGHTNING, 15s);
+    void JustDied(Unit* /*killer*/) override
+    {
+        _JustDied();
+        Talk(SAY_DEATH);
 
-            Talk(SAY_AGGRO);
-        }
+        if (Creature* lakka = me->FindNearestCreature(NPC_LAKKA, 500.0f, true))
+            lakka->AI()->Talk(SAY_LAKKA_FREE);
+    }
 
-        void JustDied(Unit* /*killer*/) override
-        {
-            _JustDied();
-            Talk(SAY_DEATH);
+    void KilledUnit(Unit* who) override
+    {
+        if (who->GetTypeId() == TYPEID_PLAYER)
+            Talk(SAY_SLAY);
+    }
 
-            if (Creature* lakka = me->FindNearestCreature(NPC_LAKKA, 500.0f, true))
-                lakka->AI()->Talk(SAY_LAKKA_FREE);
-        }
+    void JustSummoned(Creature* summoned) override
+    {
+        if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
+            summoned->AI()->AttackStart(target);
 
-        void KilledUnit(Unit* who) override
-        {
-            if (who->GetTypeId() == TYPEID_PLAYER)
-                Talk(SAY_SLAY);
-        }
+        summons.Summon(summoned);
+    }
 
-        void JustSummoned(Creature* summoned) override
-        {
-            if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
-                summoned->AI()->AttackStart(target);
-
-            summons.Summon(summoned);
-        }
-
-        void DamageTaken(Unit* /*attacker*/, uint32& damage) override
-        {
-            if (me->HealthBelowPctDamaged(90, damage) && !_summon90)
-            {
-                SythSummoning();
-                _summon90 = true;
-            }
-
-            if (me->HealthBelowPctDamaged(50, damage) && !_summon50)
-            {
-                SythSummoning();
-                _summon50 = true;
-            }
-
-            if (me->HealthBelowPctDamaged(10, damage) && !_summon10)
-            {
-                SythSummoning();
-                _summon10 = true;
-            }
-        }
-
-        void SythSummoning()
-        {
+    void OnSpellCast(SpellInfo const* spell) override
+    {
+        if (spell->Id == SPELL_SUMMON_ELEMENTALS)
             Talk(SAY_SUMMON);
+    }
 
-            if (me->IsNonMeleeSpellCast(false))
-                me->InterruptNonMeleeSpells(false);
-
-            DoCast(me, SPELL_SUMMON_SYTH_ARCANE, true);   //front
-            DoCast(me, SPELL_SUMMON_SYTH_FIRE, true);     //back
-            DoCast(me, SPELL_SUMMON_SYTH_FROST, true);    //left
-            DoCast(me, SPELL_SUMMON_SYTH_SHADOW, true);   //right
-        }
-
-        void ExecuteEvent(uint32 eventId) override
-        {
-            switch (eventId)
-            {
-                case EVENT_FLAME_SHOCK:
-                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
-                        DoCast(target, SPELL_FLAME_SHOCK);
-                    events.ScheduleEvent(EVENT_FLAME_SHOCK, 10s, 15s);
-                    break;
-                case EVENT_ARCANE_SHOCK:
-                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
-                        DoCast(target, SPELL_ARCANE_SHOCK);
-                    events.ScheduleEvent(EVENT_ARCANE_SHOCK, 10s, 15s);
-                    break;
-                case EVENT_FROST_SHOCK:
-                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
-                        DoCast(target, SPELL_FROST_SHOCK);
-                    events.ScheduleEvent(EVENT_FROST_SHOCK, 10s, 15s);
-                    break;
-                case EVENT_SHADOW_SHOCK:
-                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
-                        DoCast(target, SPELL_SHADOW_SHOCK);
-                    events.ScheduleEvent(EVENT_SHADOW_SHOCK, 10s, 15s);
-                    break;
-                case EVENT_CHAIN_LIGHTNING:
-                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
-                        DoCast(target, SPELL_CHAIN_LIGHTNING);
-                    events.ScheduleEvent(EVENT_CHAIN_LIGHTNING, 25s);
-                    break;
-                default:
-                    break;
-            }
-        }
-
-        private:
-            bool _summon90;
-            bool _summon50;
-            bool _summon10;
-    };
-
-    CreatureAI* GetAI(Creature* creature) const override
+    void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) override
     {
-        return GetSethekkHallsAI<boss_darkweaver_sythAI>(creature);
+        if (_phase < PHASE_HEALTH_90 && me->HealthBelowPctDamaged(90, damage))
+        {
+            _phase++;
+            events.ScheduleEvent(EVENT_SUMMON, 0s);
+        }
+
+        if (_phase < PHASE_HEALTH_55 && me->HealthBelowPctDamaged(55, damage))
+        {
+            _phase++;
+            events.ScheduleEvent(EVENT_SUMMON, 0s);
+        }
+
+        if (_phase < PHASE_HEALTH_10 && me->HealthBelowPctDamaged(10, damage))
+        {
+            _phase++;
+            events.ScheduleEvent(EVENT_SUMMON, 0s);
+        }
+    }
+
+    void ExecuteEvent(uint32 eventId) override
+    {
+        switch (eventId)
+        {
+            case EVENT_FLAME_SHOCK:
+                DoCastVictim(SPELL_FLAME_SHOCK);
+                events.Repeat(10s, 15s);
+                break;
+            case EVENT_ARCANE_SHOCK:
+                DoCastVictim(SPELL_ARCANE_SHOCK);
+                events.Repeat(10s, 15s);
+                break;
+            case EVENT_FROST_SHOCK:
+                DoCastVictim(SPELL_FROST_SHOCK);
+                events.Repeat(10s, 15s);
+                break;
+            case EVENT_SHADOW_SHOCK:
+                DoCastVictim(SPELL_SHADOW_SHOCK);
+                events.Repeat(10s, 15s);
+                break;
+            case EVENT_CHAIN_LIGHTNING:
+                DoCastVictim(SPELL_CHAIN_LIGHTNING);
+                events.Repeat(25s);
+                break;
+            case EVENT_SUMMON:
+                DoCastSelf(SPELL_SUMMON_ELEMENTALS);
+                break;
+            default:
+                break;
+        }
+    }
+
+private:
+    uint8 _phase;
+};
+
+// 33595 - Summon Elementals
+class spell_darkweaver_syth_summon_elementals : public SpellScript
+{
+    PrepareSpellScript(spell_darkweaver_syth_summon_elementals);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo(
+        {
+            SPELL_SUMMON_SYTH_ARCANE,
+            SPELL_SUMMON_SYTH_FIRE,
+            SPELL_SUMMON_SYTH_FROST,
+            SPELL_SUMMON_SYTH_SHADOW
+        });
+    }
+
+    void HandleScript(SpellEffIndex /*effIndex*/)
+    {
+        Unit* caster = GetCaster();
+        caster->CastSpell(caster, SPELL_SUMMON_SYTH_ARCANE, TRIGGERED_IGNORE_SPELL_AND_CATEGORY_CD);
+        caster->CastSpell(caster, SPELL_SUMMON_SYTH_FIRE, TRIGGERED_IGNORE_SPELL_AND_CATEGORY_CD);
+        caster->CastSpell(caster, SPELL_SUMMON_SYTH_FROST, TRIGGERED_IGNORE_SPELL_AND_CATEGORY_CD);
+        caster->CastSpell(caster, SPELL_SUMMON_SYTH_SHADOW, TRIGGERED_IGNORE_SPELL_AND_CATEGORY_CD);
+    }
+
+    void Register() override
+    {
+        OnEffectHit += SpellEffectFn(spell_darkweaver_syth_summon_elementals::HandleScript, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
     }
 };
 
 void AddSC_boss_darkweaver_syth()
 {
-    new boss_darkweaver_syth();
+    RegisterSethekkHallsCreatureAI(boss_darkweaver_syth);
+    RegisterSpellScript(spell_darkweaver_syth_summon_elementals);
 }

@@ -457,7 +457,7 @@ class spell_dru_frenzied_regeneration : public AuraScript
             return;
 
         int32 const mod = std::min(static_cast<int32>(rage), 100);
-        int32 const regen = CalculatePct(GetTarget()->GetMaxHealth(), GetTarget()->CalculateSpellDamage(GetSpellInfo(), EFFECT_1) * mod / 100.f);
+        int32 const regen = CalculatePct(GetTarget()->GetMaxHealth(), GetTarget()->CalculateSpellDamage(GetEffectInfo(EFFECT_1)) * mod / 100.f);
         CastSpellExtraArgs args(aurEff);
         args.AddSpellBP0(regen);
         GetTarget()->CastSpell(nullptr, SPELL_DRUID_FRENZIED_REGENERATION_HEAL, args);
@@ -536,13 +536,13 @@ class spell_dru_glyph_of_rake : public AuraScript
 
     bool CheckProc(ProcEventInfo& eventInfo)
     {
-        return eventInfo.GetProcTarget()->GetTypeId() == TYPEID_UNIT;
+        return eventInfo.GetActionTarget()->IsCreature();
     }
 
     void HandleProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
     {
         PreventDefaultAction();
-        eventInfo.GetActor()->CastSpell(eventInfo.GetProcTarget(), SPELL_DRUID_GLYPH_OF_RAKE_TRIGGERED, aurEff);
+        eventInfo.GetActor()->CastSpell(eventInfo.GetActionTarget(), SPELL_DRUID_GLYPH_OF_RAKE_TRIGGERED, aurEff);
     }
 
     void Register() override
@@ -564,19 +564,20 @@ class spell_dru_glyph_of_rejuvenation : public AuraScript
 
     bool CheckProc(ProcEventInfo& eventInfo)
     {
-        return eventInfo.GetProcTarget()->HealthBelowPct(50);
+        if (!eventInfo.GetActionTarget()->HealthBelowPct(50))
+            return false;
+
+        HealInfo* healInfo = eventInfo.GetHealInfo();
+        return healInfo && healInfo->GetHeal();
     }
 
     void HandleProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
     {
         PreventDefaultAction();
-        HealInfo* healInfo = eventInfo.GetHealInfo();
-        if (!healInfo || !healInfo->GetHeal())
-            return;
 
         CastSpellExtraArgs args(aurEff);
-        args.AddSpellBP0(CalculatePct(healInfo->GetHeal(), aurEff->GetAmount()));
-        eventInfo.GetActor()->CastSpell(eventInfo.GetProcTarget(), SPELL_DRUID_GLYPH_OF_REJUVENATION_HEAL, args);
+        args.AddSpellBP0(CalculatePct(eventInfo.GetHealInfo()->GetHeal(), aurEff->GetAmount()));
+        eventInfo.GetActor()->CastSpell(eventInfo.GetActionTarget(), SPELL_DRUID_GLYPH_OF_REJUVENATION_HEAL, args);
     }
 
     void Register() override
@@ -606,7 +607,7 @@ class spell_dru_glyph_of_shred : public AuraScript
 
         Unit* caster = eventInfo.GetActor();
         // try to find spell Rip on the target
-        if (AuraEffect const* rip = eventInfo.GetProcTarget()->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_DRUID, 0x00800000, 0x0, 0x0, caster->GetGUID()))
+        if (AuraEffect const* rip = eventInfo.GetActionTarget()->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_DRUID, 0x00800000, 0x0, 0x0, caster->GetGUID()))
         {
             // Rip's max duration, note: spells which modifies Rip's duration also counted like Glyph of Rip
             uint32 countMin = rip->GetBase()->GetMaxDuration();
@@ -689,7 +690,7 @@ class spell_dru_glyph_of_starfire_dummy : public AuraScript
     void HandleProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
     {
         PreventDefaultAction();
-        eventInfo.GetActor()->CastSpell(eventInfo.GetProcTarget(), SPELL_DRUID_GLYPH_OF_STARFIRE_SCRIPT, aurEff);
+        eventInfo.GetActor()->CastSpell(eventInfo.GetActionTarget(), SPELL_DRUID_GLYPH_OF_STARFIRE_SCRIPT, aurEff);
     }
 
     void Register() override
@@ -712,7 +713,7 @@ class spell_dru_idol_lifebloom : public AuraScript
             spellMod->op = SPELLMOD_DOT;
             spellMod->type = SPELLMOD_FLAT;
             spellMod->spellId = GetId();
-            spellMod->mask = GetSpellInfo()->Effects[aurEff->GetEffIndex()].SpellClassMask;
+            spellMod->mask = aurEff->GetSpellEffectInfo().SpellClassMask;
         }
         spellMod->value = aurEff->GetAmount() / 7;
     }
@@ -810,7 +811,7 @@ class spell_dru_leader_of_the_pack : public AuraScript
         ASSERT(impLotpMana);
 
         CastSpellExtraArgs args2(aurEff);
-        args2.AddSpellBP0(CalculatePct(caster->GetMaxPower(POWER_MANA), impLotpMana->GetSpellInfo()->Effects[EFFECT_1].CalcValue()));
+        args2.AddSpellBP0(CalculatePct(caster->GetMaxPower(POWER_MANA), impLotpMana->GetSpellInfo()->GetEffect(EFFECT_1).CalcValue()));
         caster->CastSpell(nullptr, SPELL_DRUID_IMP_LEADER_OF_THE_PACK_MANA, args2);
     }
 
@@ -886,21 +887,24 @@ class spell_dru_living_seed : public AuraScript
         return ValidateSpellInfo({ SPELL_DRUID_LIVING_SEED_PROC });
     }
 
+    bool CheckProc(ProcEventInfo& eventInfo)
+    {
+        HealInfo* healInfo = eventInfo.GetHealInfo();
+        return healInfo && healInfo->GetHeal();
+    }
+
     void HandleProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
     {
         PreventDefaultAction();
 
-        HealInfo* healInfo = eventInfo.GetHealInfo();
-        if (!healInfo || !healInfo->GetHeal())
-            return;
-
         CastSpellExtraArgs args(aurEff);
-        args.AddSpellBP0(CalculatePct(healInfo->GetHeal(), aurEff->GetAmount()));
-        GetTarget()->CastSpell(eventInfo.GetProcTarget(), SPELL_DRUID_LIVING_SEED_PROC, args);
+        args.AddSpellBP0(CalculatePct(eventInfo.GetHealInfo()->GetHeal(), aurEff->GetAmount()));
+        GetTarget()->CastSpell(eventInfo.GetActionTarget(), SPELL_DRUID_LIVING_SEED_PROC, args);
     }
 
     void Register() override
     {
+        DoCheckProc += AuraCheckProcFn(spell_dru_living_seed::CheckProc);
         OnEffectProc += AuraEffectProcFn(spell_dru_living_seed::HandleProc, EFFECT_0, SPELL_AURA_DUMMY);
     }
 };
@@ -945,7 +949,7 @@ private:
 
     bool Load() override
     {
-        absorbPct = GetSpellInfo()->Effects[EFFECT_0].CalcValue(GetCaster());
+        absorbPct = GetEffectInfo(EFFECT_0).CalcValue(GetCaster());
         return true;
     }
 
@@ -958,7 +962,7 @@ private:
     void Absorb(AuraEffect* /*aurEff*/, DamageInfo& dmgInfo, uint32& absorbAmount)
     {
         // reduces all damage taken while Stunned in Moonkin Form
-        if (GetTarget()->GetUInt32Value(UNIT_FIELD_FLAGS) & (UNIT_FLAG_STUNNED) &&
+        if (GetTarget()->HasUnitFlag(UNIT_FLAG_STUNNED) &&
             GetTarget()->HasAuraWithMechanic(1 << MECHANIC_STUN))
             absorbAmount = CalculatePct(dmgInfo.GetDamage(), absorbPct);
     }
@@ -1094,7 +1098,7 @@ class spell_dru_predatory_strikes : public AuraScript
     }
 };
 
-// 33851 - Primal Tenacity
+// -33851 - Primal Tenacity
 class spell_dru_primal_tenacity : public AuraScript
 {
     PrepareAuraScript(spell_dru_primal_tenacity);
@@ -1110,7 +1114,7 @@ private:
 
     bool Load() override
     {
-        absorbPct = GetSpellInfo()->Effects[EFFECT_1].CalcValue(GetCaster());
+        absorbPct = GetEffectInfo(EFFECT_1).CalcValue(GetCaster());
         return true;
     }
 
@@ -1123,7 +1127,7 @@ private:
     void Absorb(AuraEffect* /*aurEff*/, DamageInfo& dmgInfo, uint32& absorbAmount)
     {
         // reduces all damage taken while Stunned in Cat Form
-        if (GetTarget()->GetShapeshiftForm() == FORM_CAT && GetTarget()->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_STUNNED) &&
+        if (GetTarget()->GetShapeshiftForm() == FORM_CAT && GetTarget()->HasUnitFlag(UNIT_FLAG_STUNNED) &&
             GetTarget()->HasAuraWithMechanic(1 << MECHANIC_STUN))
             absorbAmount = CalculatePct(dmgInfo.GetDamage(), absorbPct);
     }
@@ -1157,7 +1161,7 @@ class spell_dru_revitalize : public AuraScript
         if (!roll_chance_i(aurEff->GetAmount()))
             return;
 
-        Unit* target = eventInfo.GetProcTarget();
+        Unit* target = eventInfo.GetActionTarget();
         uint32 spellId;
 
         switch (target->GetPowerType())
@@ -1231,7 +1235,7 @@ class spell_dru_savage_defense : public AuraScript
 
     bool Validate(SpellInfo const* spellInfo) override
     {
-        return ValidateSpellInfo({ spellInfo->Effects[EFFECT_0].TriggerSpell });
+        return ValidateSpellInfo({ spellInfo->GetEffect(EFFECT_0).TriggerSpell });
     }
 
     void HandleProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
@@ -1240,7 +1244,7 @@ class spell_dru_savage_defense : public AuraScript
         Unit* caster = eventInfo.GetActor();
         CastSpellExtraArgs args(aurEff);
         args.AddSpellBP0(CalculatePct(caster->GetTotalAttackPowerValue(BASE_ATTACK), aurEff->GetAmount()));
-        caster->CastSpell(nullptr, GetSpellInfo()->Effects[aurEff->GetEffIndex()].TriggerSpell, args);
+        caster->CastSpell(nullptr, aurEff->GetSpellEffectInfo().TriggerSpell, args);
     }
 
     void Register() override
@@ -1483,7 +1487,7 @@ class spell_dru_t3_2p_bonus : public AuraScript
     void HandleProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
     {
         PreventDefaultAction();
-        Unit* target = eventInfo.GetProcTarget();
+        Unit* target = eventInfo.GetActionTarget();
         uint32 spellId;
 
         switch (target->GetPowerType())
@@ -1524,7 +1528,7 @@ class spell_dru_t3_6p_bonus : public AuraScript
     void HandleProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
     {
         PreventDefaultAction();
-        eventInfo.GetActor()->CastSpell(eventInfo.GetProcTarget(), SPELL_DRUID_BLESSING_OF_THE_CLAW, aurEff);
+        eventInfo.GetActor()->CastSpell(eventInfo.GetActionTarget(), SPELL_DRUID_BLESSING_OF_THE_CLAW, aurEff);
     }
 
     void Register() override
@@ -1721,7 +1725,7 @@ class spell_dru_t10_balance_4p_bonus : public AuraScript
             return;
 
         Unit* caster = eventInfo.GetActor();
-        Unit* target = eventInfo.GetProcTarget();
+        Unit* target = eventInfo.GetActionTarget();
 
         SpellInfo const* spellInfo = sSpellMgr->AssertSpellInfo(SPELL_DRUID_LANGUISH);
         int32 amount = CalculatePct(static_cast<int32>(damageInfo->GetDamage()), aurEff->GetAmount());
@@ -1807,7 +1811,7 @@ class spell_dru_t10_restoration_4p_bonus_dummy : public AuraScript
         if (!caster)
             return false;
 
-        return caster->GetGroup() || caster != eventInfo.GetProcTarget();
+        return caster->GetGroup() || caster != eventInfo.GetActionTarget();
     }
 
     void HandleProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
@@ -1851,7 +1855,7 @@ class spell_dru_wild_growth : public SpellScript
 
     bool Validate(SpellInfo const* spellInfo) override
     {
-        if (spellInfo->Effects[EFFECT_2].IsEffect() || spellInfo->Effects[EFFECT_2].CalcValue() <= 0)
+        if (spellInfo->GetEffect(EFFECT_2).IsEffect() || spellInfo->GetEffect(EFFECT_2).CalcValue() <= 0)
             return false;
         return true;
     }
@@ -1860,7 +1864,7 @@ class spell_dru_wild_growth : public SpellScript
     {
         targets.remove_if(RaidCheck(GetCaster()));
 
-        uint32 const maxTargets = uint32(GetSpellInfo()->Effects[EFFECT_2].CalcValue(GetCaster()));
+        uint32 const maxTargets = uint32(GetEffectInfo(EFFECT_2).CalcValue(GetCaster()));
 
         if (targets.size() > maxTargets)
         {

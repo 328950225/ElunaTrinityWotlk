@@ -59,6 +59,8 @@ enum InvisInfernalCaster
     MODEL_INVISIBLE            = 20577,
     MODEL_INFERNAL             = 17312,
     SPELL_SUMMON_INFERNAL      = 37277,
+    SPELL_SPAWN_AND_PACIFY     = 37791,
+    SPELL_TRANSFORM_INFERNAL   = 37794,
     TYPE_INFERNAL              = 1,
     DATA_DIED                  = 1
 };
@@ -153,7 +155,8 @@ public:
         void IsSummonedBy(WorldObject* summoner) override
         {
             if (summoner->ToCreature())
-                casterGUID = summoner->ToCreature()->GetGUID();;
+                casterGUID = summoner->ToCreature()->GetGUID();
+            DoCastSelf(SPELL_SPAWN_AND_PACIFY);
         }
 
         void JustDied(Unit* /*killer*/) override
@@ -166,9 +169,12 @@ public:
         {
             if (spellInfo->Id == SPELL_SUMMON_INFERNAL)
             {
-                me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PACIFIED | UNIT_FLAG_NOT_SELECTABLE);
+                me->RemoveUnitFlag(UNIT_FLAG_UNINTERACTIBLE);
                 me->SetImmuneToPC(false);
+                me->RemoveAurasDueToSpell(SPELL_SPAWN_AND_PACIFY);
+                // handle by the spell below when such auras will be not removed after evade
                 me->SetDisplayId(MODEL_INFERNAL);
+                // DoCastSelf(SPELL_TRANSFORM_INFERNAL);
             }
         }
 
@@ -408,7 +414,7 @@ public:
 
             if (id == 1)
             {
-                if (PlayerGUID)
+                if (!PlayerGUID.IsEmpty())
                     PlayerGUID.Clear();
 
                 me->DespawnOrUnsummon(1ms);
@@ -424,7 +430,7 @@ public:
                     if (FlyTimer <= diff)
                     {
                         Tapped = false;
-                        if (PlayerGUID)
+                        if (!PlayerGUID.IsEmpty())
                         {
                             Player* player = ObjectAccessor::GetPlayer(*me, PlayerGUID);
                             if (player && player->GetQuestStatus(QUEST_THE_FORCE_OF_NELTHARAKU) == QUEST_STATUS_INCOMPLETE)
@@ -485,7 +491,9 @@ enum Earthmender
     SPELL_HEALING_WAVE          = 12491,
 
     QUEST_ESCAPE_COILSCAR       = 10451,
-    NPC_COILSKAR_ASSASSIN       = 21044
+    NPC_COILSKAR_ASSASSIN       = 21044,
+
+    PATH_ESCORT_WILDA           = 168218,
 };
 
 class npc_earthmender_wilda : public CreatureScript
@@ -630,7 +638,8 @@ public:
                 Talk(SAY_WIL_START, player);
                 me->SetFaction(FACTION_EARTHEN_RING);
 
-                Start(false, false, player->GetGUID(), quest);
+                LoadPath(PATH_ESCORT_WILDA);
+                Start(false, player->GetGUID(), quest);
             }
         }
     };
@@ -776,7 +785,7 @@ public:
             Initialize();
 
             me->AddUnitState(UNIT_STATE_ROOT);
-            me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+            me->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
             me->SetTarget(ObjectGuid::Empty);
         }
 
@@ -815,7 +824,7 @@ public:
             case 6:
                 if (Player* AggroTarget = ObjectAccessor::GetPlayer(*me, AggroTargetGUID))
                 {
-                    me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+                    me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
                     me->ClearUnitState(UNIT_STATE_ROOT);
 
                     float x, y, z;
@@ -1214,7 +1223,7 @@ void npc_lord_illidan_stormrage::npc_lord_illidan_stormrageAI::SummonNextWave()
 
             if (WaveCount < 3)//1-3 Wave
             {
-                if (PlayerGUID)
+                if (!PlayerGUID.IsEmpty())
                 {
                     if (Player* target = ObjectAccessor::GetPlayer(*me, PlayerGUID))
                     {
@@ -1229,7 +1238,7 @@ void npc_lord_illidan_stormrage::npc_lord_illidan_stormrageAI::SummonNextWave()
             if (WavesInfo[WaveCount].CreatureId == 22076) // Torloth
             {
                 ENSURE_AI(npc_torloth_the_magnificent::npc_torloth_the_magnificentAI, Spawn->AI())->LordIllidanGUID = me->GetGUID();
-                if (PlayerGUID)
+                if (!PlayerGUID.IsEmpty())
                     ENSURE_AI(npc_torloth_the_magnificent::npc_torloth_the_magnificentAI, Spawn->AI())->AggroTargetGUID = PlayerGUID;
             }
         }
@@ -1501,6 +1510,7 @@ enum ZuluhedChains
     NPC_KARYNAKU    = 22112,
 };
 
+// 38790 - Unlocking Zuluhed's Chains
 class spell_unlocking_zuluheds_chains : public SpellScriptLoader
 {
     public:
@@ -1586,6 +1596,144 @@ public:
     }
 };
 
+/*######
+## Quest 10769, 10776: Dissension Amongst the Ranks...
+######*/
+
+enum DissensionAmongstTheRanks
+{
+    SPELL_ILLIDARI_DISGUISE_MALE          = 38225,
+    SPELL_ILLIDARI_DISGUISE_FEMALE        = 38227,
+    SPELL_KILL_CREDIT_CRAZED_COLOSSUS     = 38228
+};
+
+// 38224 - Illidari Agent Illusion
+class spell_shadowmoon_illidari_agent_illusion : public AuraScript
+{
+    PrepareAuraScript(spell_shadowmoon_illidari_agent_illusion);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_ILLIDARI_DISGUISE_MALE, SPELL_ILLIDARI_DISGUISE_FEMALE });
+    }
+
+    void AfterApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+    {
+        if (Player* target = GetTarget()->ToPlayer())
+            target->CastSpell(target, target->GetNativeGender() == GENDER_MALE ?
+            SPELL_ILLIDARI_DISGUISE_MALE : SPELL_ILLIDARI_DISGUISE_FEMALE);
+    }
+
+    void AfterRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+    {
+        Unit* target = GetTarget();
+        target->RemoveAurasDueToSpell(SPELL_ILLIDARI_DISGUISE_MALE);
+        target->RemoveAurasDueToSpell(SPELL_ILLIDARI_DISGUISE_FEMALE);
+    }
+
+    void Register() override
+    {
+        AfterEffectApply += AuraEffectApplyFn(spell_shadowmoon_illidari_agent_illusion::AfterApply, EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
+        AfterEffectRemove += AuraEffectApplyFn(spell_shadowmoon_illidari_agent_illusion::AfterRemove, EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
+    }
+};
+
+// 38223 - Quest Credit: Crazed Colossus
+class spell_shadowmoon_quest_credit_crazed_colossus : public SpellScript
+{
+    PrepareSpellScript(spell_shadowmoon_quest_credit_crazed_colossus);
+
+    bool Validate(SpellInfo const* spellInfo) override
+    {
+        return ValidateSpellInfo(
+        {
+            uint32(spellInfo->GetEffect(EFFECT_0).CalcValue()),
+            SPELL_KILL_CREDIT_CRAZED_COLOSSUS
+        });
+    }
+
+    void HandleScript(SpellEffIndex /*effIndex*/)
+    {
+        Unit* target = GetHitUnit();
+        if (target->HasAura(uint32(GetEffectValue())))
+            target->CastSpell(target, SPELL_KILL_CREDIT_CRAZED_COLOSSUS);
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_shadowmoon_quest_credit_crazed_colossus::HandleScript, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
+    }
+};
+
+/*######
+## Quest 10637, 10688: A Necessary Distraction
+######*/
+
+enum ANecessaryDistraction
+{
+    SPELL_BANISH_AZALOTH     = 37833
+};
+
+// 37834 - Unbanish Azaloth
+class spell_shadowmoon_unbanish_azaloth : public SpellScript
+{
+    PrepareSpellScript(spell_shadowmoon_unbanish_azaloth);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_BANISH_AZALOTH });
+    }
+
+    void HandleScript(SpellEffIndex /*effIndex*/)
+    {
+        GetHitUnit()->RemoveAurasDueToSpell(SPELL_BANISH_AZALOTH);
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_shadowmoon_unbanish_azaloth::HandleScript, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
+    }
+};
+
+/*######
+## Quest 10672: Frankly, It Makes No Sense...
+######*/
+
+enum FranklyItMakesNoSense
+{
+    SPELL_ARCANO_SCORP_CONTROL_01     = 37868,
+    SPELL_ARCANO_SCORP_CONTROL_02     = 37893,
+    SPELL_ARCANO_SCORP_CONTROL_03     = 37895
+};
+
+// 37867 - Arcano-Scorp Control
+// 37892 - Arcano-Scorp Control
+// 37894 - Arcano-Scorp Control
+class spell_shadowmoon_arcano_scorp_control : public SpellScript
+{
+    PrepareSpellScript(spell_shadowmoon_arcano_scorp_control);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ _triggeredSpellId });
+    }
+
+    void HandleDummy(SpellEffIndex /*effIndex*/)
+    {
+        GetHitUnit()->CastSpell(GetHitUnit(), _triggeredSpellId);
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_shadowmoon_arcano_scorp_control::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
+    }
+
+    uint32 _triggeredSpellId;
+
+public:
+    explicit spell_shadowmoon_arcano_scorp_control(uint32 triggeredSpellId) : _triggeredSpellId(triggeredSpellId) { }
+};
+
 void AddSC_shadowmoon_valley()
 {
     new npc_invis_infernal_caster();
@@ -1600,4 +1748,10 @@ void AddSC_shadowmoon_valley()
     new npc_enraged_spirit();
     new spell_unlocking_zuluheds_chains();
     new npc_shadowmoon_tuber_node();
+    RegisterSpellScript(spell_shadowmoon_illidari_agent_illusion);
+    RegisterSpellScript(spell_shadowmoon_quest_credit_crazed_colossus);
+    RegisterSpellScript(spell_shadowmoon_unbanish_azaloth);
+    RegisterSpellScriptWithArgs(spell_shadowmoon_arcano_scorp_control, "spell_shadowmoon_arcano_scorp_control_01", SPELL_ARCANO_SCORP_CONTROL_01);
+    RegisterSpellScriptWithArgs(spell_shadowmoon_arcano_scorp_control, "spell_shadowmoon_arcano_scorp_control_02", SPELL_ARCANO_SCORP_CONTROL_02);
+    RegisterSpellScriptWithArgs(spell_shadowmoon_arcano_scorp_control, "spell_shadowmoon_arcano_scorp_control_03", SPELL_ARCANO_SCORP_CONTROL_03);
 }

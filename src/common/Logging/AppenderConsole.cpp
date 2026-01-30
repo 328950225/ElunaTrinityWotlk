@@ -48,8 +48,8 @@ void AppenderConsole::InitColors(std::string const& name, std::string_view str)
     std::vector<std::string_view> colorStrs = Trinity::Tokenize(str, ' ', false);
     if (colorStrs.size() != NUM_ENABLED_LOG_LEVELS)
     {
-        throw InvalidAppenderArgsException(Trinity::StringFormat("Log::CreateAppenderFromConfig: Invalid color data '%s' for console appender %s (expected %u entries, got %zu)",
-            std::string(str).c_str(), name.c_str(), NUM_ENABLED_LOG_LEVELS, colorStrs.size()));
+        throw InvalidAppenderArgsException(Trinity::StringFormat("Log::CreateAppenderFromConfig: Invalid color data '{}' for console appender {} (expected {} entries, got {})",
+            str, name, NUM_ENABLED_LOG_LEVELS, colorStrs.size()));
     }
 
     for (uint8 i = 0; i < NUM_ENABLED_LOG_LEVELS; ++i)
@@ -58,8 +58,8 @@ void AppenderConsole::InitColors(std::string const& name, std::string_view str)
             _colors[i] = static_cast<ColorTypes>(*color);
         else
         {
-            throw InvalidAppenderArgsException(Trinity::StringFormat("Log::CreateAppenderFromConfig: Invalid color '%s' for log level %s on console appender %s",
-                std::string(colorStrs[i]).c_str(), EnumUtils::ToTitle(static_cast<LogLevel>(i)), name.c_str()));
+            throw InvalidAppenderArgsException(Trinity::StringFormat("Log::CreateAppenderFromConfig: Invalid color '{}' for log level {} on console appender {}",
+                colorStrs[i], EnumUtils::ToTitle(static_cast<LogLevel>(i)), name));
         }
     }
 
@@ -163,6 +163,15 @@ void AppenderConsole::ResetColor(bool stdout_stream)
     #endif
 }
 
+void AppenderConsole::Print(std::string const& str, bool error)
+{
+#if TRINITY_PLATFORM == TRINITY_PLATFORM_WINDOWS
+    WriteWinConsole(str + "\n", error);
+#else
+    utf8printf(error ? stderr : stdout, "%s\n", str.c_str());
+#endif
+}
+
 void AppenderConsole::_write(LogMessage const* message)
 {
     bool stdout_stream = !(message->level == LOG_LEVEL_ERROR || message->level == LOG_LEVEL_FATAL);
@@ -195,9 +204,9 @@ void AppenderConsole::_write(LogMessage const* message)
         }
 
         SetColor(stdout_stream, _colors[index]);
-        utf8printf(stdout_stream ? stdout : stderr, "%s%s\n", message->prefix.c_str(), message->text.c_str());
+        Print(message->prefix + message->text, !stdout_stream);
         ResetColor(stdout_stream);
     }
     else
-        utf8printf(stdout_stream ? stdout : stderr, "%s%s\n", message->prefix.c_str(), message->text.c_str());
+        Print(message->prefix + message->text, !stdout_stream);
 }

@@ -43,7 +43,7 @@ enum GLCreatureIds
 
 enum GLGameObjectIds
 {
-    GO_MAULGAR_DOOR             = 184468,
+    GO_MAULGAR_DOOR             = 183817,
     GO_GRUUL_DOOR               = 184662
 };
 
@@ -52,5 +52,7 @@ inline AI* GetGruulsLairAI(T* obj)
 {
     return GetInstanceAI<AI>(obj, GLScriptName);
 }
+
+#define RegisterGruulsLairCreatureAI(ai_name) RegisterCreatureAIWithFactory(ai_name, GetGruulsLairAI)
 
 #endif // GRUULS_LAIR_H_

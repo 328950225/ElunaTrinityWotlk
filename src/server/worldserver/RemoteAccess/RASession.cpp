@@ -27,14 +27,17 @@
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/read_until.hpp>
 #include <memory>
+#include <thread>
 
 using boost::asio::ip::tcp;
 
 void RASession::Start()
 {
+    _socket.non_blocking(false);
+
     // wait 1 second for active connections to send negotiation request
     for (int counter = 0; counter < 10 && _socket.available() == 0; counter++)
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(100ms);
 
     // Check if there are bytes available, if they are, then the client is requesting the negotiation
     if (_socket.available() > 0)
@@ -56,7 +59,7 @@ void RASession::Start()
     if (username.empty())
         return;
 
-    TC_LOG_INFO("commands.ra", "Accepting RA connection from user %s (IP: %s)", username.c_str(), GetRemoteIpAddress().c_str());
+    TC_LOG_INFO("commands.ra", "Accepting RA connection from user {} (IP: {})", username, GetRemoteIpAddress());
 
     Send("Password: ");
 
@@ -71,7 +74,7 @@ void RASession::Start()
         return;
     }
 
-    TC_LOG_INFO("commands.ra", "User %s (IP: %s) authenticated correctly to RA", username.c_str(), GetRemoteIpAddress().c_str());
+    TC_LOG_INFO("commands.ra", "User {} (IP: {}) authenticated correctly to RA", username, GetRemoteIpAddress());
 
     // Authentication successful, send the motd
     Send(std::string(std::string(Motd::GetMotd()) + "\r\n").c_str());
@@ -130,7 +133,7 @@ bool RASession::CheckAccessLevel(const std::string& user)
 
     if (!result)
     {
-        TC_LOG_INFO("commands.ra", "User %s does not exist in database", user.c_str());
+        TC_LOG_INFO("commands.ra", "User {} does not exist in database", user);
         return false;
     }
 
@@ -138,12 +141,12 @@ bool RASession::CheckAccessLevel(const std::string& user)
 
     if (fields[1].GetUInt8() < sConfigMgr->GetIntDefault("Ra.MinLevel", 3))
     {
-        TC_LOG_INFO("commands.ra", "User %s has no privilege to login", user.c_str());
+        TC_LOG_INFO("commands.ra", "User {} has no privilege to login", user);
         return false;
     }
     else if (fields[2].GetInt32() != -1)
     {
-        TC_LOG_INFO("commands.ra", "User %s has to be assigned on all realms (with RealmID = '-1')", user.c_str());
+        TC_LOG_INFO("commands.ra", "User {} has to be assigned on all realms (with RealmID = '-1')", user);
         return false;
     }
 
@@ -173,7 +176,7 @@ bool RASession::CheckPassword(const std::string& user, const std::string& pass)
             return true;
     }
 
-    TC_LOG_INFO("commands.ra", "Wrong password for user: %s", user.c_str());
+    TC_LOG_INFO("commands.ra", "Wrong password for user: {}", user);
     return false;
 }
 
@@ -182,7 +185,7 @@ bool RASession::ProcessCommand(std::string& command)
     if (command.length() == 0)
         return true;
 
-    TC_LOG_INFO("commands.ra", "Received command: %s", command.c_str());
+    TC_LOG_INFO("commands.ra", "Received command: {}", command);
 
     // handle quit, exit and logout commands to terminate connection
     if (command == "quit" || command == "exit" || command == "logout")

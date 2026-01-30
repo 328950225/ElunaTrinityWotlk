@@ -38,8 +38,36 @@
 #include <boost/stacktrace.hpp>
 #endif
 
-#define MIN_MYSQL_SERVER_VERSION 50100u
-#define MIN_MYSQL_CLIENT_VERSION 50100u
+static consteval uint32 ParseVersionString(std::string_view chars)
+{
+    uint32 result = 0;
+    uint32 partialResult = 0;
+    uint32 multiplier = 10000;
+    for (std::size_t i =  0; i < chars.length(); ++i)
+    {
+        char c = chars[i];
+        if (c == '.')
+        {
+            if (multiplier < 100)
+                throw "Too many . characters in version string";
+
+            result += partialResult * multiplier;
+            multiplier /= 100;
+            partialResult = 0;
+        }
+        else if (c >= '0' && c <= '9')
+        {
+            partialResult *= 10;
+            partialResult += c - '0';
+        }
+        else
+            throw "Invalid input character";
+    }
+
+    result += partialResult * multiplier;
+
+    return result;
+}
 
 class PingOperation : public SQLOperation
 {
@@ -56,10 +84,18 @@ DatabaseWorkerPool<T>::DatabaseWorkerPool()
     : _queue(new ProducerConsumerQueue<SQLOperation*>()),
       _async_threads(0), _synch_threads(0)
 {
-    WPFatal(mysql_thread_safe(), "Used MySQL library isn't thread-safe.");
-    WPFatal(mysql_get_client_version() >= MIN_MYSQL_CLIENT_VERSION, "TrinityCore does not support MySQL versions below 5.1");
-    WPFatal(mysql_get_client_version() == MYSQL_VERSION_ID, "Used MySQL library version (%s id %lu) does not match the version id used to compile TrinityCore (id %u). Search on forum for TCE00011.",
-        mysql_get_client_info(), mysql_get_client_version(), MYSQL_VERSION_ID);
+    // We only need check compiled version match on Windows
+    // because on other platforms ABI compatibility is ensured by SOVERSION
+    // and Windows MySQL releases don't even have abi-version-like component in their dll file name
+#if TRINITY_PLATFORM == TRINITY_PLATFORM_WINDOWS
+#if defined(LIBMARIADB) && MARIADB_PACKAGE_VERSION_ID >= 30200
+#define TRINITY_COMPILED_CLIENT_VERSION MARIADB_PACKAGE_VERSION_ID
+#else
+#define TRINITY_COMPILED_CLIENT_VERSION MYSQL_VERSION_ID
+#endif
+    WPFatal(mysql_get_client_version() == TRINITY_COMPILED_CLIENT_VERSION, "Used " TRINITY_MYSQL_FLAVOR " library version (%s id %lu) does not match the version id used to compile TrinityCore (id %u). Search on forum for TCE00011.", mysql_get_client_info(), mysql_get_client_version(), TRINITY_COMPILED_CLIENT_VERSION);
+#undef TRINITY_COMPILED_CLIENT_VERSION
+#endif
 }
 
 template <class T>
@@ -83,8 +119,8 @@ uint32 DatabaseWorkerPool<T>::Open()
 {
     WPFatal(_connectionInfo.get(), "Connection info was not set!");
 
-    TC_LOG_INFO("sql.driver", "Opening DatabasePool '%s'. "
-        "Asynchronous connections: %u, synchronous connections: %u.",
+    TC_LOG_INFO("sql.driver", "Opening DatabasePool '{}'. "
+        "Asynchronous connections: {}, synchronous connections: {}.",
         GetDatabaseName(), _async_threads, _synch_threads);
 
     uint32 error = OpenConnections(IDX_ASYNC, _async_threads);
@@ -96,8 +132,8 @@ uint32 DatabaseWorkerPool<T>::Open()
 
     if (!error)
     {
-        TC_LOG_INFO("sql.driver", "DatabasePool '%s' opened successfully. " SZFMTD
-                    " total connections running.", GetDatabaseName(),
+        TC_LOG_INFO("sql.driver", "DatabasePool '{}' opened successfully. "
+                    "{} total connections running.", GetDatabaseName(),
                     (_connections[IDX_SYNCH].size() + _connections[IDX_ASYNC].size()));
     }
 
@@ -107,12 +143,12 @@ uint32 DatabaseWorkerPool<T>::Open()
 template <class T>
 void DatabaseWorkerPool<T>::Close()
 {
-    TC_LOG_INFO("sql.driver", "Closing down DatabasePool '%s'.", GetDatabaseName());
+    TC_LOG_INFO("sql.driver", "Closing down DatabasePool '{}'.", GetDatabaseName());
 
     //! Closes the actualy MySQL connection.
     _connections[IDX_ASYNC].clear();
 
-    TC_LOG_INFO("sql.driver", "Asynchronous connections on DatabasePool '%s' terminated. "
+    TC_LOG_INFO("sql.driver", "Asynchronous connections on DatabasePool '{}' terminated. "
                 "Proceeding with synchronous connections.",
         GetDatabaseName());
 
@@ -122,7 +158,7 @@ void DatabaseWorkerPool<T>::Close()
     //! meaning there can be no concurrent access at this point.
     _connections[IDX_SYNCH].clear();
 
-    TC_LOG_INFO("sql.driver", "All connections on DatabasePool '%s' closed.", GetDatabaseName());
+    TC_LOG_INFO("sql.driver", "All connections on DatabasePool '{}' closed.", GetDatabaseName());
 }
 
 template <class T>
@@ -383,9 +419,9 @@ uint32 DatabaseWorkerPool<T>::OpenConnections(InternalIndex type, uint8 numConne
             _connections[type].clear();
             return error;
         }
-        else if (connection->GetServerVersion() < MIN_MYSQL_SERVER_VERSION)
+        else if (uint32 serverVersion = connection->GetServerVersion(); serverVersion < ParseVersionString(TRINITY_REQUIRED_MYSQL_VERSION))
         {
-            TC_LOG_ERROR("sql.driver", "TrinityCore does not support MySQL versions below 5.1");
+            TC_LOG_ERROR("sql.driver", "TrinityCore does not support " TRINITY_MYSQL_FLAVOR " versions below " TRINITY_REQUIRED_MYSQL_VERSION " (found id {}, need id >= {}), please update your " TRINITY_MYSQL_FLAVOR " server", serverVersion, ParseVersionString(TRINITY_REQUIRED_MYSQL_VERSION));
             return 1;
         }
         else
@@ -414,6 +450,12 @@ void DatabaseWorkerPool<T>::Enqueue(SQLOperation* op)
 }
 
 template <class T>
+size_t DatabaseWorkerPool<T>::QueueSize() const
+{
+    return _queue->Size();
+}
+
+template <class T>
 T* DatabaseWorkerPool<T>::GetFreeConnection()
 {
 #ifdef TRINITY_DEBUG
@@ -421,7 +463,7 @@ T* DatabaseWorkerPool<T>::GetFreeConnection()
     {
         std::ostringstream ss;
         ss << boost::stacktrace::stacktrace();
-        TC_LOG_WARN("sql.performances", "Sync query at:\n%s", ss.str().c_str());
+        TC_LOG_WARN("sql.performances", "Sync query at:\n{}", ss.str());
     }
 #endif
 

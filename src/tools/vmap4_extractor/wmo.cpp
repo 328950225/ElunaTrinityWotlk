@@ -17,18 +17,16 @@
 
 #include "vmapexport.h"
 #include "adtfile.h"
+#include "Errors.h"
+#include "mpq_libmpq.h"
+#include "StringFormat.h"
 #include "vec3d.h"
-#include "mpq_libmpq04.h"
-
 #include "VMapDefinitions.h"
 #include "wmo.h"
 #include <fstream>
 #include <map>
 #include <cstdio>
 #include <cstdlib>
-#include <cassert>
-#undef min
-#undef max
 
 WMORoot::WMORoot(std::string const& filename)
     : filename(filename), color(0), nTextures(0), nGroups(0), nPortals(0), nLights(0),
@@ -91,8 +89,8 @@ bool WMORoot::open()
                 std::string path = ptr;
 
                 char* s = GetPlainName(ptr);
-                fixnamen(s, strlen(s));
-                fixname2(s, strlen(s));
+                FixNameCase(s, strlen(s));
+                FixNameSpaces(s, strlen(s));
 
                 uint32 doodadNameIndex = ptr - f.getPointer();
                 ptr += path.length() + 1;
@@ -106,14 +104,16 @@ bool WMORoot::open()
             DoodadData.Spawns.resize(size / sizeof(WMO::MODD));
             f.read(DoodadData.Spawns.data(), size);
         }
+        else if (!strcmp(fourcc, "MOGN"))
+        {
+            GroupNames.resize(size);
+            f.read(GroupNames.data(), size);
+        }
         /*
         else if (!strcmp(fourcc,"MOTX"))
         {
         }
         else if (!strcmp(fourcc,"MOMT"))
-        {
-        }
-        else if (!strcmp(fourcc,"MOGN"))
         {
         }
         else if (!strcmp(fourcc,"MOGI"))
@@ -188,9 +188,6 @@ bool WMOGroup::open(WMORoot* rootWMO)
         }
         fourcc[4] = 0;
         size_t nextpos = f.getPos() + size;
-        LiquEx_size = 0;
-        liquflags = 0;
-
         if (!strcmp(fourcc,"MOGP"))//header
         {
             f.read(&groupName, 4);
@@ -426,7 +423,7 @@ int WMOGroup::ConvertToVMAPGroupWmo(FILE* output, bool preciseVectorData)
         // translate triangle indices to new numbers
         for (int i=0; i<3*nColTriangles; ++i)
         {
-            assert(MoviEx[i] < nVertices);
+            ASSERT(MoviEx[i] < nVertices);
             MoviEx[i] = IndexRenum[MoviEx[i]];
         }
 
@@ -443,7 +440,7 @@ int WMOGroup::ConvertToVMAPGroupWmo(FILE* output, bool preciseVectorData)
             if(IndexRenum[i] >= 0)
                 check -= fwrite(MOVT+3*i, sizeof(float), 3, output);
 
-        assert(check==0);
+        ASSERT(check==0);
 
         delete [] MoviEx;
         delete [] IndexRenum;
@@ -498,6 +495,22 @@ uint32 WMOGroup::GetLiquidTypeId(uint32 liquidTypeId)
     return liquidTypeId;
 }
 
+bool WMOGroup::ShouldSkip(WMORoot const* root) const
+{
+    // skip unreachable
+    if (mogpFlags & 0x80)
+        return true;
+
+    // skip antiportals
+    if (mogpFlags & 0x4000000)
+        return true;
+
+    if (groupName < int32(root->GroupNames.size()) && !strcmp(&root->GroupNames[groupName], "antiportal"))
+        return true;
+
+    return false;
+}
+
 WMOGroup::~WMOGroup()
 {
     delete [] MOPY;
@@ -518,14 +531,12 @@ void MapObject::Extract(ADT::MODF const& mapObjDef, char const* WmoInstName, uin
 
     //-----------add_in _dir_file----------------
 
-    char tempname[512];
-    sprintf(tempname, "%s/%s", szWorkDirWmo, WmoInstName);
-    FILE *input;
-    input = fopen(tempname, "r+b");
+    std::string tempname = Trinity::StringFormat("{}/{}", szWorkDirWmo, WmoInstName);
+    FILE* input = fopen(tempname.c_str(), "r+b");
 
     if (!input)
     {
-        printf("WMOInstance::WMOInstance: couldn't open %s\n", tempname);
+        printf("WMOInstance::WMOInstance: couldn't open %s\n", tempname.c_str());
         return;
     }
 
@@ -570,6 +581,5 @@ void MapObject::Extract(ADT::MODF const& mapObjDef, char const* WmoInstName, uin
     uint32 nlen = strlen(WmoInstName);
     fwrite(&nlen, sizeof(uint32), 1, pDirfile);
     fwrite(WmoInstName, sizeof(char), nlen, pDirfile);
-
 
 }

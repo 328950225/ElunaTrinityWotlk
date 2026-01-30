@@ -77,19 +77,19 @@ void OpcodeTable::ValidateAndSetClientOpcode(OpcodeClient opcode, char const* na
 {
     if (uint32(opcode) == NULL_OPCODE)
     {
-        TC_LOG_ERROR("network", "Opcode %s does not have a value", name);
+        TC_LOG_ERROR("network", "Opcode {} does not have a value", name);
         return;
     }
 
     if (uint32(opcode) >= NUM_OPCODE_HANDLERS)
     {
-        TC_LOG_ERROR("network", "Tried to set handler for an invalid opcode %d", opcode);
+        TC_LOG_ERROR("network", "Tried to set handler for an invalid opcode {}", opcode);
         return;
     }
 
     if (_internalTableClient[opcode] != nullptr)
     {
-        TC_LOG_ERROR("network", "Tried to override client handler of %s with %s (opcode %u)", opcodeTable[opcode]->Name, name, opcode);
+        TC_LOG_ERROR("network", "Tried to override client handler of {} with {} (opcode {})", opcodeTable[opcode]->Name, name, opcode);
         return;
     }
 
@@ -100,19 +100,19 @@ void OpcodeTable::ValidateAndSetServerOpcode(OpcodeServer opcode, char const* na
 {
     if (uint32(opcode) == NULL_OPCODE)
     {
-        TC_LOG_ERROR("network", "Opcode %s does not have a value", name);
+        TC_LOG_ERROR("network", "Opcode {} does not have a value", name);
         return;
     }
 
     if (uint32(opcode) >= NUM_OPCODE_HANDLERS)
     {
-        TC_LOG_ERROR("network", "Tried to set handler for an invalid opcode %d", opcode);
+        TC_LOG_ERROR("network", "Tried to set handler for an invalid opcode {}", opcode);
         return;
     }
 
     if (_internalTableClient[opcode] != nullptr)
     {
-        TC_LOG_ERROR("network", "Tried to override server handler of %s with %s (opcode %u)", opcodeTable[opcode]->Name, name, opcode);
+        TC_LOG_ERROR("network", "Tried to override server handler of {} with {} (opcode {})", opcodeTable[opcode]->Name, name, opcode);
         return;
     }
 
@@ -662,7 +662,7 @@ void OpcodeTable::Initialize()
     /*0x213*/ DEFINE_HANDLER(CMSG_UNLEARN_TALENTS,                         STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     /*0x214*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_UPDATE_INSTANCE_ENCOUNTER_UNIT, STATUS_NEVER);
     /*0x215*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GAMEOBJECT_DESPAWN_ANIM,   STATUS_NEVER);
-    /*0x216*/ DEFINE_HANDLER(MSG_CORPSE_QUERY,                             STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleCorpseQueryOpcode         );
+    /*0x216*/ DEFINE_HANDLER(MSG_CORPSE_QUERY,                             STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleQueryCorpseLocation       );
     /*0x217*/ DEFINE_HANDLER(CMSG_GMTICKET_DELETETICKET,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGMTicketDeleteOpcode      );
     /*0x218*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GMTICKET_DELETETICKET,     STATUS_NEVER);
     /*0x219*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_CHAT_WRONG_FACTION,        STATUS_NEVER);
@@ -851,7 +851,7 @@ void OpcodeTable::Initialize()
     /*0x2D0*/ DEFINE_HANDLER(CMSG_MOVE_WATER_WALK_ACK,                     STATUS_LOGGEDIN, PROCESS_THREADSAFE,   &WorldSession::HandleMoveWaterWalkAck          );
     /*0x2D1*/ DEFINE_HANDLER(CMSG_MOVE_NOT_ACTIVE_MOVER,                   STATUS_LOGGEDIN, PROCESS_THREADSAFE,   &WorldSession::HandleMoveNotActiveMover        );
     /*0x2D2*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_PLAY_SOUND,                STATUS_NEVER);
-    /*0x2D3*/ DEFINE_HANDLER(CMSG_BATTLEFIELD_STATUS,                      STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleBattlefieldStatusOpcode   );
+    /*0x2D3*/ DEFINE_HANDLER(CMSG_BATTLEFIELD_STATUS,                      STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleRequestBattlefieldStatusOpcode);
     /*0x2D4*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_BATTLEFIELD_STATUS,        STATUS_NEVER);
     /*0x2D5*/ DEFINE_HANDLER(CMSG_BATTLEFIELD_PORT,                        STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleBattleFieldPortOpcode     );
     /*0x2D6*/ DEFINE_HANDLER(MSG_INSPECT_HONOR_STATS,                      STATUS_LOGGEDIN, PROCESS_INPLACE,      &WorldSession::HandleInspectHonorStatsOpcode   );
@@ -960,7 +960,7 @@ void OpcodeTable::Initialize()
     /*0x33D*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_MOTD,                      STATUS_NEVER);
     /*0x33E*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_MOVE_SET_CAN_TRANSITION_BETWEEN_SWIM_AND_FLY, STATUS_NEVER);
     /*0x33F*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_MOVE_UNSET_CAN_TRANSITION_BETWEEN_SWIM_AND_FLY, STATUS_NEVER);
-    /*0x340*/ DEFINE_HANDLER(CMSG_MOVE_SET_CAN_TRANSITION_BETWEEN_SWIM_AND_FLY_ACK, STATUS_NEVER, PROCESS_INPLACE,  &WorldSession::Handle_NULL                     );
+    /*0x340*/ DEFINE_HANDLER(CMSG_MOVE_SET_CAN_TRANSITION_BETWEEN_SWIM_AND_FLY_ACK, STATUS_LOGGEDIN, PROCESS_THREADSAFE, &WorldSession::HandleMoveSetCanTransitionBetweenSwinAndFlyAck);
     /*0x341*/ DEFINE_HANDLER(MSG_MOVE_START_SWIM_CHEAT,                    STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     /*0x342*/ DEFINE_HANDLER(MSG_MOVE_STOP_SWIM_CHEAT,                     STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     /*0x343*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_MOVE_SET_CAN_FLY,          STATUS_NEVER);
@@ -1245,7 +1245,7 @@ void OpcodeTable::Initialize()
     /*0x45A*/ DEFINE_HANDLER(MSG_MOVE_SET_PITCH_RATE_CHEAT,                STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     /*0x45B*/ DEFINE_HANDLER(MSG_MOVE_SET_PITCH_RATE,                      STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     /*0x45C*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_FORCE_PITCH_RATE_CHANGE,   STATUS_NEVER);
-    /*0x45D*/ DEFINE_HANDLER(CMSG_FORCE_PITCH_RATE_CHANGE_ACK,             STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
+    /*0x45D*/ DEFINE_HANDLER(CMSG_FORCE_PITCH_RATE_CHANGE_ACK,             STATUS_LOGGEDIN, PROCESS_THREADSAFE,   &WorldSession::HandleForceSpeedChangeAck);
     /*0x45E*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_SPLINE_SET_PITCH_RATE,     STATUS_NEVER);
     /*0x45F*/ DEFINE_HANDLER(CMSG_CALENDAR_EVENT_INVITE_NOTES,             STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     /*0x460*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_CALENDAR_EVENT_INVITE_NOTES, STATUS_NEVER);
@@ -1334,7 +1334,7 @@ void OpcodeTable::Initialize()
     /*0x4B3*/ DEFINE_HANDLER(CMSG_ITEM_REFUND_INFO,                        STATUS_LOGGEDIN, PROCESS_INPLACE,      &WorldSession::HandleItemRefundInfoRequest     );
     /*0x4B4*/ DEFINE_HANDLER(CMSG_ITEM_REFUND,                             STATUS_LOGGEDIN, PROCESS_INPLACE,      &WorldSession::HandleItemRefund                );
     /*0x4B5*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_ITEM_REFUND_RESULT,        STATUS_NEVER);
-    /*0x4B6*/ DEFINE_HANDLER(CMSG_CORPSE_MAP_POSITION_QUERY,               STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleCorpseMapPositionQuery    );
+    /*0x4B6*/ DEFINE_HANDLER(CMSG_CORPSE_MAP_POSITION_QUERY,               STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleQueryCorpseTransport      );
     /*0x4B7*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_CORPSE_MAP_POSITION_QUERY_RESPONSE,      STATUS_NEVER);
     /*0x4B8*/ DEFINE_HANDLER(CMSG_UNUSED5,                                 STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::Handle_NULL                     );
     /*0x4B9*/ DEFINE_HANDLER(CMSG_UNUSED6,                                 STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
@@ -1359,9 +1359,9 @@ void OpcodeTable::Initialize()
     /*0x4CC*/ DEFINE_HANDLER(CMSG_END_BATTLEFIELD_CHEAT,                   STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     /*0x4CD*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_MULTIPLE_PACKETS,          STATUS_NEVER);
     /*0x4CE*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_MOVE_GRAVITY_DISABLE,      STATUS_NEVER);
-    /*0x4CF*/ DEFINE_HANDLER(CMSG_MOVE_GRAVITY_DISABLE_ACK,                STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
+    /*0x4CF*/ DEFINE_HANDLER(CMSG_MOVE_GRAVITY_DISABLE_ACK,                STATUS_LOGGEDIN, PROCESS_THREADSAFE,   &WorldSession::HandleMoveGravityDisableAck     );
     /*0x4D0*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_MOVE_GRAVITY_ENABLE,       STATUS_NEVER);
-    /*0x4D1*/ DEFINE_HANDLER(CMSG_MOVE_GRAVITY_ENABLE_ACK,                 STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
+    /*0x4D1*/ DEFINE_HANDLER(CMSG_MOVE_GRAVITY_ENABLE_ACK,                 STATUS_LOGGEDIN, PROCESS_THREADSAFE,   &WorldSession::HandleMoveGravityEnableAck);
     /*0x4D2*/ DEFINE_SERVER_OPCODE_HANDLER(MSG_MOVE_GRAVITY_CHNG,          STATUS_NEVER);
     /*0x4D3*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_SPLINE_MOVE_GRAVITY_DISABLE, STATUS_NEVER);
     /*0x4D4*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_SPLINE_MOVE_GRAVITY_ENABLE, STATUS_NEVER);
@@ -1431,7 +1431,7 @@ void OpcodeTable::Initialize()
     /*0x514*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_SEND_ALL_COMBAT_LOG,       STATUS_NEVER);
     /*0x515*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_OPEN_LFG_DUNGEON_FINDER,   STATUS_NEVER);
     /*0x516*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_MOVE_SET_COLLISION_HGT,    STATUS_NEVER);
-    /*0x517*/ DEFINE_HANDLER(CMSG_MOVE_SET_COLLISION_HGT_ACK,              STATUS_UNHANDLED, PROCESS_INPLACE,     &WorldSession::Handle_NULL                     );
+    /*0x517*/ DEFINE_HANDLER(CMSG_MOVE_SET_COLLISION_HGT_ACK,              STATUS_LOGGEDIN, PROCESS_THREADSAFE,   &WorldSession::HandleMoveSetCollisionHgtAck    );
     /*0x518*/ DEFINE_HANDLER(MSG_MOVE_SET_COLLISION_HGT,                   STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     /*0x519*/ DEFINE_HANDLER(CMSG_CLEAR_RANDOM_BG_WIN_TIME,                STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     /*0x51A*/ DEFINE_HANDLER(CMSG_CLEAR_HOLIDAY_BG_WIN_TIME,               STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );

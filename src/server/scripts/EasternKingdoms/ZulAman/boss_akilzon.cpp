@@ -31,6 +31,7 @@ EndScriptData */
 #include "MotionMaster.h"
 #include "ObjectAccessor.h"
 #include "ScriptedCreature.h"
+#include "SpellScript.h"
 #include "TemporarySummon.h"
 #include "Weather.h"
 #include "zulaman.h"
@@ -46,7 +47,16 @@ enum Spells
     SPELL_ELECTRICAL_OVERLOAD   = 43658,
     SPELL_EAGLE_SWOOP           = 44732,
     SPELL_ZAP                   = 43137,
-    SPELL_SAND_STORM            = 25160
+    SPELL_SAND_STORM            = 25160,
+
+    SPELL_ELECTRICAL_STORM_AURA = 44007,
+    SPELL_TELEPORT_SELF         = 44006,
+
+    SPELL_ELECTRICAL_ARC_1      = 43653,
+    SPELL_ELECTRICAL_ARC_2      = 43654,
+    SPELL_ELECTRICAL_ARC_3      = 43655,
+    SPELL_ELECTRICAL_ARC_4      = 43656,
+    SPELL_ELECTRICAL_ARC_5      = 43659
 };
 
 enum Says
@@ -191,7 +201,7 @@ class boss_akilzon : public CreatureScript
                             trigger->SetFaction(FACTION_FRIENDLY);
                             trigger->SetMaxHealth(100000);
                             trigger->SetHealth(100000);
-                            trigger->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
+                            trigger->RemoveUnitFlag(UNIT_FLAG_UNINTERACTIBLE);
                             if (Cloud)
                             {
                                 CastSpellExtraArgs args;
@@ -291,7 +301,7 @@ class boss_akilzon : public CreatureScript
                                         Cloud->SetFaction(FACTION_FRIENDLY);
                                         Cloud->SetMaxHealth(9999999);
                                         Cloud->SetHealth(9999999);
-                                        Cloud->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
+                                        Cloud->RemoveUnitFlag(UNIT_FLAG_UNINTERACTIBLE);
                                     }
                                 StormCount = 1;
                                 events.ScheduleEvent(EVENT_ELECTRICAL_STORM, 1min); // 60 seconds(bosskillers)
@@ -413,11 +423,10 @@ class npc_akilzon_eagle : public CreatureScript
 
             void MoveInLineOfSight(Unit* /*who*/) override { }
 
-
             void MovementInform(uint32, uint32) override
             {
                 arrived = true;
-                if (TargetGUID)
+                if (!TargetGUID.IsEmpty())
                 {
                     if (Unit* target = ObjectAccessor::GetUnit(*me, TargetGUID))
                         DoCast(target, SPELL_EAGLE_SWOOP, true);
@@ -467,8 +476,66 @@ class npc_akilzon_eagle : public CreatureScript
         }
 };
 
+// 43648 - Electrical Storm
+class spell_akilzon_electrical_storm : public SpellScript
+{
+    PrepareSpellScript(spell_akilzon_electrical_storm);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_ELECTRICAL_STORM_AURA, SPELL_TELEPORT_SELF });
+    }
+
+    void HandleAfterHit()
+    {
+        Unit* target = GetHitUnit();
+        target->CastSpell(target, SPELL_ELECTRICAL_STORM_AURA, true);
+        target->CastSpell(target, SPELL_TELEPORT_SELF, true);
+    }
+
+    void Register() override
+    {
+        AfterHit += SpellHitFn(spell_akilzon_electrical_storm::HandleAfterHit);
+    }
+};
+
+// 43658 - Electrical Overload Graphic Pulse
+class spell_akilzon_electrical_overload : public SpellScript
+{
+    PrepareSpellScript(spell_akilzon_electrical_overload);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo(
+        {
+            SPELL_ELECTRICAL_ARC_1,
+            SPELL_ELECTRICAL_ARC_2,
+            SPELL_ELECTRICAL_ARC_3,
+            SPELL_ELECTRICAL_ARC_4,
+            SPELL_ELECTRICAL_ARC_5
+        });
+    }
+
+    void HandleScript(SpellEffIndex /*effIndex*/)
+    {
+        Unit* caster = GetCaster();
+        caster->CastSpell(caster, SPELL_ELECTRICAL_ARC_1, true);
+        caster->CastSpell(caster, SPELL_ELECTRICAL_ARC_2, true);
+        caster->CastSpell(caster, SPELL_ELECTRICAL_ARC_3, true);
+        caster->CastSpell(caster, SPELL_ELECTRICAL_ARC_4, true);
+        caster->CastSpell(caster, SPELL_ELECTRICAL_ARC_5, true);
+    }
+
+    void Register() override
+    {
+        OnEffectHit += SpellEffectFn(spell_akilzon_electrical_overload::HandleScript, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
+    }
+};
+
 void AddSC_boss_akilzon()
 {
     new boss_akilzon();
     new npc_akilzon_eagle();
+    RegisterSpellScript(spell_akilzon_electrical_storm);
+    RegisterSpellScript(spell_akilzon_electrical_overload);
 }

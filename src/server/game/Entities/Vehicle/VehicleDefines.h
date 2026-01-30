@@ -19,6 +19,7 @@
 #define __TRINITY_VEHICLEDEFINES_H
 
 #include "Define.h"
+#include "Duration.h"
 #include <vector>
 #include <map>
 
@@ -64,12 +65,12 @@ enum class VehicleExitParameters
 struct PassengerInfo
 {
     ObjectGuid Guid;
-    bool IsUnselectable;
+    bool IsUninteractible;
 
     void Reset()
     {
         Guid.Clear();
-        IsUnselectable = false;
+        IsUninteractible = false;
     }
 };
 
@@ -113,8 +114,14 @@ struct VehicleAccessory
     uint8 SummonedType;
 };
 
+struct VehicleTemplate
+{
+    Milliseconds DespawnDelay = Milliseconds::zero();
+};
+
 typedef std::vector<VehicleAccessory> VehicleAccessoryList;
-typedef std::map<uint32, VehicleAccessoryList> VehicleAccessoryContainer;
+typedef std::map<ObjectGuid::LowType, VehicleAccessoryList> VehicleAccessoryContainer;
+typedef std::map<uint32, VehicleAccessoryList> VehicleAccessoryTemplateContainer;
 typedef std::map<int8, VehicleSeat> SeatMap;
 
 class TransportBase

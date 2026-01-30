@@ -47,7 +47,7 @@ class instance_molten_core : public InstanceMapScript
 
         struct instance_molten_core_InstanceMapScript : public InstanceScript
         {
-            instance_molten_core_InstanceMapScript(Map* map) : InstanceScript(map)
+            instance_molten_core_InstanceMapScript(InstanceMap* map) : InstanceScript(map)
             {
                 SetHeaders(DataHeader);
                 SetBossNumber(MAX_ENCOUNTER);
@@ -141,7 +141,7 @@ class instance_molten_core : public InstanceMapScript
             void SummonMajordomoExecutus()
             {
                 _executusSchedule = false;
-                if (_majordomoExecutusGUID)
+                if (!_majordomoExecutusGUID.IsEmpty())
                     return;
 
                 if (GetBossState(BOSS_MAJORDOMO_EXECUTUS) != DONE)

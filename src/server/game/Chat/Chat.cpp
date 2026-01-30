@@ -19,17 +19,14 @@
 #include "AccountMgr.h"
 #include "CellImpl.h"
 #include "CharacterCache.h"
-#include "DatabaseEnv.h"
-#include "DBCStores.h"
 #include "GridNotifiersImpl.h"
 #include "Language.h"
-#include "Log.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "Optional.h"
 #include "Player.h"
 #include "Realm.h"
-#include "ScriptMgr.h"
+#include "StringConvert.h"
 #include "World.h"
 #include "WorldSession.h"
 #include <boost/algorithm/string/replace.hpp>
@@ -58,7 +55,7 @@ bool ChatHandler::HasLowerSecurity(Player* target, ObjectGuid guid, bool strong)
 
     if (target)
         target_session = target->GetSession();
-    else if (guid)
+    else if (!guid.IsEmpty())
         target_account = sCharacterCache->GetCharacterAccountIdByGuid(guid);
 
     if (!target_session && !target_account)
@@ -80,7 +77,7 @@ bool ChatHandler::HasLowerSecurityAccount(WorldSession* target, uint32 target_ac
         return false;
 
     // ignore only for non-players for non strong checks (when allow apply command at least to same sec level)
-    if (m_session->HasPermission(rbac::RBAC_PERM_CHECK_FOR_LOWER_SECURITY) && !strong && !sWorld->getBoolConfig(CONFIG_GM_LOWER_SECURITY))
+    if (m_session->HasPermission(rbac::RBAC_PERM_CAN_IGNORE_LOWER_SECURITY_CHECK) && !strong && !sWorld->getBoolConfig(CONFIG_GM_LOWER_SECURITY))
         return false;
 
     if (target)
@@ -196,7 +193,7 @@ size_t ChatHandler::BuildChatPacket(WorldPacket& data, ChatMsg chatType, Languag
     data.Initialize(!gmMessage ? SMSG_MESSAGECHAT : SMSG_GM_MESSAGECHAT);
     data << uint8(chatType);
     data << int32(language);
-    data << uint64(senderGUID);
+    data << senderGUID;
     data << uint32(0);  // some flags
     switch (chatType)
     {
@@ -211,8 +208,8 @@ size_t ChatHandler::BuildChatPacket(WorldPacket& data, ChatMsg chatType, Languag
             data << uint32(senderName.length() + 1);
             data << senderName;
             receiverGUIDPos = data.wpos();
-            data << uint64(receiverGUID);
-            if (receiverGUID && !receiverGUID.IsPlayer() && !receiverGUID.IsPet())
+            data << receiverGUID;
+            if (!receiverGUID.IsEmpty() && !receiverGUID.IsPlayer() && !receiverGUID.IsPet())
             {
                 data << uint32(receiverName.length() + 1);
                 data << receiverName;
@@ -222,14 +219,14 @@ size_t ChatHandler::BuildChatPacket(WorldPacket& data, ChatMsg chatType, Languag
             data << uint32(senderName.length() + 1);
             data << senderName;
             receiverGUIDPos = data.wpos();
-            data << uint64(receiverGUID);
+            data << receiverGUID;
             break;
         case CHAT_MSG_BG_SYSTEM_NEUTRAL:
         case CHAT_MSG_BG_SYSTEM_ALLIANCE:
         case CHAT_MSG_BG_SYSTEM_HORDE:
             receiverGUIDPos = data.wpos();
-            data << uint64(receiverGUID);
-            if (receiverGUID && !receiverGUID.IsPlayer())
+            data << receiverGUID;
+            if (!receiverGUID.IsEmpty() && !receiverGUID.IsPlayer())
             {
                 data << uint32(receiverName.length() + 1);
                 data << receiverName;
@@ -238,7 +235,7 @@ size_t ChatHandler::BuildChatPacket(WorldPacket& data, ChatMsg chatType, Languag
         case CHAT_MSG_ACHIEVEMENT:
         case CHAT_MSG_GUILD_ACHIEVEMENT:
             receiverGUIDPos = data.wpos();
-            data << uint64(receiverGUID);
+            data << receiverGUID;
             break;
         default:
             if (gmMessage)
@@ -254,7 +251,7 @@ size_t ChatHandler::BuildChatPacket(WorldPacket& data, ChatMsg chatType, Languag
             }
 
             receiverGUIDPos = data.wpos();
-            data << uint64(receiverGUID);
+            data << receiverGUID;
             break;
     }
 
@@ -510,76 +507,6 @@ Creature* ChatHandler::GetCreatureFromPlayerMapByDbGuid(ObjectGuid::LowType lowg
     return creature;
 }
 
-enum SpellLinkType
-{
-    SPELL_LINK_SPELL   = 0,
-    SPELL_LINK_TALENT  = 1,
-    SPELL_LINK_ENCHANT = 2,
-    SPELL_LINK_TRADE   = 3,
-    SPELL_LINK_GLYPH   = 4
-};
-
-static char const* const spellKeys[] =
-{
-    "Hspell",                                               // normal spell
-    "Htalent",                                              // talent spell
-    "Henchant",                                             // enchanting recipe spell
-    "Htrade",                                               // profession/skill spell
-    "Hglyph",                                               // glyph
-    nullptr
-};
-
-uint32 ChatHandler::extractSpellIdFromLink(char* text)
-{
-    // number or [name] Shift-click form |color|Henchant:recipe_spell_id|h[prof_name: recipe_name]|h|r
-    // number or [name] Shift-click form |color|Hglyph:glyph_slot_id:glyph_prop_id|h[%s]|h|r
-    // number or [name] Shift-click form |color|Hspell:spell_id|h[name]|h|r
-    // number or [name] Shift-click form |color|Htalent:talent_id, rank|h[name]|h|r
-    // number or [name] Shift-click form |color|Htrade:spell_id, skill_id, max_value, cur_value|h[name]|h|r
-    int type = 0;
-    char* param1_str = nullptr;
-    char* idS = extractKeyFromLink(text, spellKeys, &type, &param1_str);
-    if (!idS)
-        return 0;
-
-    uint32 id = atoul(idS);
-
-    switch (type)
-    {
-        case SPELL_LINK_SPELL:
-            return id;
-        case SPELL_LINK_TALENT:
-        {
-            // talent
-            TalentEntry const* talentEntry = sTalentStore.LookupEntry(id);
-            if (!talentEntry)
-                return 0;
-
-            uint32 rank = param1_str ? atol(param1_str) : 0u;
-            if (rank >= MAX_TALENT_RANK)
-                return 0;
-
-            return talentEntry->SpellRank[rank];
-        }
-        case SPELL_LINK_ENCHANT:
-        case SPELL_LINK_TRADE:
-            return id;
-        case SPELL_LINK_GLYPH:
-        {
-            uint32 glyph_prop_id = param1_str ? atoul(param1_str) : 0;
-
-            GlyphPropertiesEntry const* glyphPropEntry = sGlyphPropertiesStore.LookupEntry(glyph_prop_id);
-            if (!glyphPropEntry)
-                return 0;
-
-            return glyphPropEntry->SpellID;
-        }
-    }
-
-    // unknown type?
-    return 0;
-}
-
 enum GuidLinkType
 {
     GUID_LINK_PLAYER     = 0,                              // must be first for selection in not link case
@@ -625,13 +552,13 @@ ObjectGuid::LowType ChatHandler::extractLowGuidFromLink(char* text, HighGuid& gu
         case GUID_LINK_CREATURE:
         {
             guidHigh = HighGuid::Unit;
-            ObjectGuid::LowType lowguid = atoul(idS);
+            ObjectGuid::LowType lowguid = Trinity::StringTo<ObjectGuid::LowType>(idS).value_or(0);
             return lowguid;
         }
         case GUID_LINK_GAMEOBJECT:
         {
             guidHigh = HighGuid::GameObject;
-            ObjectGuid::LowType lowguid = atoul(idS);
+            ObjectGuid::LowType lowguid = Trinity::StringTo<ObjectGuid::LowType>(idS).value_or(0);
             return lowguid;
         }
     }
@@ -680,10 +607,14 @@ bool ChatHandler::extractPlayerTarget(char* args, Player** player, ObjectGuid* p
             *player_guid = pl ? pl->GetGUID() : guid;
 
         if (player_name)
-            *player_name = pl || guid ? name : "";
+            *player_name = pl || !guid.IsEmpty() ? name : "";
     }
     else
     {
+        // populate strtok buffer to prevent crashes
+        static char dummy[1] = "";
+        strtok(dummy, "");
+
         Player* pl = getSelectedPlayerOrSelf();
         // if allowed player pointer
         if (player)
@@ -763,7 +694,7 @@ int ChatHandler::GetSessionDbLocaleIndex() const
     return m_session->GetSessionDbLocaleIndex();
 }
 
-std::string ChatHandler::GetNameLink(Player* chr) const
+std::string ChatHandler::GetNameLink(Player const* chr) const
 {
     return playerLink(chr->GetName());
 }

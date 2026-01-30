@@ -17,7 +17,6 @@
 
 #include "ScriptMgr.h"
 #include "InstanceScript.h"
-#include "Map.h"
 #include "mechanar.h"
 
 static DoorData const doorData[] =
@@ -35,31 +34,11 @@ class instance_mechanar : public InstanceMapScript
 
         struct instance_mechanar_InstanceMapScript : public InstanceScript
         {
-            instance_mechanar_InstanceMapScript(Map* map) : InstanceScript(map)
+            instance_mechanar_InstanceMapScript(InstanceMap* map) : InstanceScript(map)
             {
                 SetHeaders(DataHeader);
                 SetBossNumber(EncounterCount);
                 LoadDoorData(doorData);
-            }
-
-            bool SetBossState(uint32 type, EncounterState state) override
-            {
-                if (!InstanceScript::SetBossState(type, state))
-                    return false;
-
-                switch (type)
-                {
-                    case DATA_GATEWATCHER_GYROKILL:
-                    case DATA_GATEWATCHER_IRON_HAND:
-                    case DATA_MECHANOLORD_CAPACITUS:
-                    case DATA_NETHERMANCER_SEPRETHREA:
-                    case DATA_PATHALEON_THE_CALCULATOR:
-                        break;
-                    default:
-                        break;
-                }
-
-                return true;
             }
         };
 
